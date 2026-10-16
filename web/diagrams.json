@@ -1,0 +1,272 @@
+[
+  {
+    "id": "configuration",
+    "title": "模型配置解析",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 0,
+    "description": "从服务配置到 HelloAgentsLLM；显式解析地址、模型和凭证。",
+    "sources": [
+      {
+        "file": "core/llm.py",
+        "symbol": "create_llm",
+        "label": "create_llm",
+        "match": "create_llm"
+      },
+      {
+        "file": "hello_agents/core/llm.py",
+        "symbol": "HelloAgentsLLM.__init__",
+        "label": "客户端初始化",
+        "match": "HelloAgentsLLM"
+      }
+    ],
+    "code": "flowchart TD\n    A[create_llm] --> B[load_dotenv 加载项目环境变量]\n    B --> C[读取并解析 models.json 或指定配置文件]\n    C --> D[参数 provider 或 defaultProvider]\n    D --> E[取 providers 中对应的服务配置]\n    E --> F[参数 model 或 defaultModel]\n    F --> G[读取同一配置的 baseUrl]\n    G --> H{配置 apiKeyEnv?}\n    H -->|是| I[从环境变量取 API Key]\n    H -->|否| J[读取配置中的 apiKey]\n    I --> K{密钥非空?}\n    J --> K\n    K -->|否| L[抛出 ValueError]\n    K -->|是| M[显式传入 provider / model / base_url / api_key]\n    M --> N[返回 HelloAgentsLLM 实例]"
+  },
+  {
+    "id": "main",
+    "title": "main 流式请求",
+    "kind": "时序图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 1,
+    "description": "main 直接请求模型，生成器开始迭代后才发送请求。",
+    "sources": [
+      {
+        "file": "main.py",
+        "symbol": "",
+        "label": "main.py",
+        "match": "main.py"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "create_llm",
+        "label": "create_llm",
+        "match": "create_llm"
+      },
+      {
+        "file": "hello_agents/core/llm.py",
+        "symbol": "HelloAgentsLLM.think",
+        "label": "think",
+        "match": "HelloAgentsLLM"
+      }
+    ],
+    "code": "sequenceDiagram\n    autonumber\n    participant Main as main.py\n    participant Factory as create_llm\n    participant LLM as HelloAgentsLLM\n    participant API as 配置的模型服务\n    Main->>Factory: create_llm()\n    Factory-->>Main: 模型客户端\n    Main->>LLM: think(messages)\n    LLM-->>Main: 返回生成器\n    Main->>LLM: for chunk 开始迭代\n    LLM->>API: 发送一次流式请求\n    loop 接收响应片段\n        API-->>LLM: 响应片段\n        LLM-->>Main: yield 文本片段\n    end\n    Note over LLM,API: 请求目标由 base_url 决定，模型由 model 决定"
+  },
+  {
+    "id": "simple",
+    "title": "Agent 普通对话",
+    "kind": "时序图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 2,
+    "description": "无工具分支：组织上下文、invoke、保存历史。",
+    "sources": [
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent.run",
+        "label": "run",
+        "match": "自定义 SimpleAgent"
+      },
+      {
+        "file": "hello_agents/core/agent.py",
+        "symbol": "Agent.get_history",
+        "label": "get_history",
+        "match": "get_history()"
+      },
+      {
+        "file": "hello_agents/core/llm.py",
+        "symbol": "HelloAgentsLLM.invoke",
+        "label": "invoke",
+        "match": "invoke(messages)"
+      },
+      {
+        "file": "hello_agents/core/agent.py",
+        "symbol": "Agent.add_message",
+        "label": "add_message",
+        "match": "add_message"
+      },
+      {
+        "file": "test/test_simple_agent.py",
+        "symbol": "",
+        "label": "真实 Agent 测试"
+      }
+    ],
+    "code": "sequenceDiagram\n    autonumber\n    participant Caller as 调用方\n    participant Agent as 自定义 SimpleAgent\n    participant History as 框架 Agent 历史\n    participant LLM as HelloAgentsLLM\n    participant API as 模型服务\n    Caller->>Agent: run(input_text)\n    Agent->>History: get_history()\n    History-->>Agent: 历史列表的浅拷贝\n    Agent->>Agent: system + history + user\n    Note over Agent,LLM: 未启用工具的分支\n    Agent->>LLM: invoke(messages)\n    LLM->>API: 非流式模型请求\n    API-->>LLM: 完整响应\n    LLM-->>Agent: response 字符串\n    Agent->>History: add_message(user)\n    Agent->>History: add_message(assistant)\n    Agent-->>Caller: return response"
+  },
+  {
+    "id": "tool-loop",
+    "title": "Agent 工具循环",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 3,
+    "description": "文本工具协议的解析、调度、结果回传与迭代上限。",
+    "sources": [
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent.run",
+        "label": "run",
+        "match": "run 组织"
+      },
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent._run_with_tool_calling",
+        "label": "工具循环",
+        "match": "_run_with_tool_calling"
+      },
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent._parse_tool_calls",
+        "label": "解析标记",
+        "match": "_parse_tool_calls"
+      },
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent._execute_tool_call",
+        "label": "执行工具",
+        "match": "_execute_tool_call"
+      },
+      {
+        "file": "hello_agents/tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "框架注册表",
+        "match": "registry.execute_tool"
+      },
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent._parse_tool_parameters",
+        "label": "解析参数",
+        "match": "解析参数"
+      }
+    ],
+    "code": "flowchart TD\n    A[run 组织上下文] --> B{启用工具且有注册表?}\n    B -->|否| C[invoke 普通回答]\n    B -->|是| D[进入 _run_with_tool_calling]\n    D --> E{迭代次数小于上限?}\n    E -->|是| F[LLM.invoke 获取响应]\n    F --> G[_parse_tool_calls 解析文本标记]\n    G --> H{有工具标记?}\n    H -->|否| I[取当前响应作为最终回答]\n    H -->|是| J[逐个 _execute_tool_call]\n    J --> K{名称是 calculator?}\n    K -->|是| L[框架 registry.execute_tool]\n    K -->|否| M[解析参数 / get_tool / tool.run]\n    L --> N[清理标记并追加 assistant 和 user 工具结果]\n    M --> N\n    N --> O[迭代次数加一]\n    O --> E\n    E -->|否| P[额外 invoke 一次 / 不再解析工具]\n    P --> Q[保存原始用户消息和最终回答]\n    I --> Q\n    C --> Q\n    Q --> R[返回最终回答]"
+  },
+  {
+    "id": "stream",
+    "title": "Agent 流式对话",
+    "kind": "时序图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 4,
+    "description": "逐块转发与累积回答；完整消费生成器后保存历史。",
+    "sources": [
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent.stream_run",
+        "label": "stream_run",
+        "match": "SimpleAgent.stream_run"
+      },
+      {
+        "file": "hello_agents/core/llm.py",
+        "symbol": "HelloAgentsLLM.stream_invoke",
+        "label": "stream_invoke",
+        "match": "stream_invoke(messages)"
+      },
+      {
+        "file": "hello_agents/core/agent.py",
+        "symbol": "Agent.get_history",
+        "label": "get_history",
+        "match": "get_history()"
+      }
+    ],
+    "code": "sequenceDiagram\n    autonumber\n    participant Caller as 调用方\n    participant Agent as SimpleAgent.stream_run\n    participant History as 框架 Agent 历史\n    participant LLM as HelloAgentsLLM\n    participant API as 模型服务\n    Caller->>Agent: stream_run(input_text)\n    Agent-->>Caller: 返回生成器\n    Caller->>Agent: 开始迭代\n    Agent->>History: get_history()\n    History-->>Agent: 历史列表\n    Agent->>Agent: 组织 system / history / user\n    Agent->>LLM: stream_invoke(messages)\n    LLM->>API: 流式请求\n    loop 每个响应片段\n        API-->>LLM: chunk\n        LLM-->>Agent: yield chunk\n        Agent->>Agent: 累积 full_response\n        Agent-->>Caller: yield chunk\n    end\n    Agent->>History: 完整迭代后保存 user 和 assistant\n    Note over Caller,History: 提前停止消费生成器时，不保证保存历史"
+  },
+  {
+    "id": "calculator",
+    "title": "计算器编排调用",
+    "kind": "时序图",
+    "document": "docs/计算器工具调用流程.md",
+    "description": "复用原文档：测试函数手动调用计算器，再让模型组织回答。",
+    "sources": [
+      {
+        "file": "test/test_calculator.py",
+        "symbol": "test_with_simple_agent",
+        "label": "测试编排",
+        "match": "测试函数"
+      },
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "create_calculator_registry",
+        "label": "创建注册表"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "本地注册表",
+        "match": "ToolRegistry"
+      },
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "calculate",
+        "label": "calculate",
+        "match": "计算器 calculate"
+      },
+      {
+        "file": "hello_agents/core/llm.py",
+        "symbol": "HelloAgentsLLM.think",
+        "label": "think",
+        "match": "HelloAgentsLLM"
+      }
+    ],
+    "code": "sequenceDiagram\n    autonumber\n    actor User as 用户\n    participant Test as 测试函数（模拟 Agent 编排）\n    participant LLM as HelloAgentsLLM\n    participant Registry as ToolRegistry\n    participant Calc as 计算器 calculate\n    participant API as 模型服务 API\n\n    Note over Test,API: 准备：create_llm() 创建客户端；create_calculator_registry() 注册 my_calculator → calculate\n    Note over User,Test: 测试代码预设问题，模拟用户输入\n    User->>Test: 请帮我计算 sqrt(16) + 2 * 3\n\n    rect rgb(255, 248, 235)\n        Note over Test,Calc: 第一阶段：执行计算器工具\n        Test->>Registry: execute_tool(\"my_calculator\", \"sqrt(16) + 2 * 3\")\n        Registry->>Registry: 从 _functions 中取出对应的 func\n        Registry->>Calc: calculate(\"sqrt(16) + 2 * 3\")\n        Calc->>Calc: ast.parse(expression, mode=\"eval\") 解析表达式\n        Calc->>Calc: _eval_node() 递归计算：4.0 + 6\n        Calc-->>Registry: 返回字符串 \"10.0\"\n        Registry-->>Test: 返回 calc_result = \"10.0\"\n    end\n\n    rect rgb(237, 246, 255)\n        Note over Test,API: 第二阶段：生成自然语言回答\n        Test->>Test: 构建 final_messages，包含原问题和计算结果\n        Test->>LLM: response = llm.think(final_messages)\n        LLM-->>Test: 返回生成器，此时尚未发送请求\n        Test->>LLM: for chunk in response：开始迭代\n        LLM->>API: chat.completions.create(messages=..., stream=True)\n        loop 逐块返回，直到响应结束\n            API-->>LLM: 返回响应片段\n            LLM-->>Test: yield chunk（文本片段）\n            Test->>Test: print(chunk, end=\"\", flush=True)\n        end\n    end\n\n    Note over Test,User: 终端展示模型回答，下面仅为示例措辞\n    Test-->>User: sqrt(16) = 4，2 × 3 = 6，所以结果是 10。"
+  },
+  {
+    "id": "evaluate",
+    "title": "计算器递归求值",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 5,
+    "description": "解析 AST 并递归求值；保留当前未实现分支和异常边界。",
+    "sources": [
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "calculate",
+        "label": "calculate",
+        "match": "calculate expression"
+      },
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "_eval_node",
+        "label": "_eval_node",
+        "match": "_eval_node"
+      }
+    ],
+    "code": "flowchart TD\n    A[calculate expression] --> B{表达式为空?}\n    B -->|是| C[返回空表达式错误文本]\n    B -->|否| D[构建运算表和 sqrt / pi 白名单]\n    D --> E[ast.parse mode=eval]\n    E --> F[_eval_node node.body]\n    F --> G{节点类型}\n    G -->|Constant| H[返回 node.value]\n    G -->|BinOp| I[递归左右子节点 / 查运算表 / 执行运算]\n    G -->|Call| J[取函数名 / 白名单匹配 / 递归参数 / 调用]\n    G -->|Name| K[白名单中读取常量]\n    G -->|其他或名称未匹配| L[当前实现可能隐式返回 None]\n    H --> M[str result]\n    I --> M\n    J --> M\n    K --> M\n    L --> M\n    E -.指定类型异常.-> N[返回计算失败文本]\n    F -.指定类型异常.-> N\n    Note[未实现 UnaryOp 分支 / 不是所有异常都会捕获] --- L"
+  },
+  {
+    "id": "registry",
+    "title": "本地注册与调度",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 6,
+    "description": "本地注册表只执行函数工具，与 Agent 使用的 SDK 注册表区分。",
+    "sources": [
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "create_calculator_registry",
+        "label": "创建注册表",
+        "match": "create_calculator_registry"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_function",
+        "label": "register_function",
+        "match": "register_function"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_tool",
+        "label": "register_tool",
+        "match": "register_tool"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "execute_tool",
+        "match": "execute_tool"
+      },
+      {
+        "file": "tools/base.py",
+        "symbol": "Tool",
+        "label": "本地 Tool 抽象类"
+      }
+    ],
+    "code": "flowchart TD\n    A[create_calculator_registry] --> B[创建项目 ToolRegistry]\n    B --> C[register_function my_calculator → calculate]\n    C --> D[保存到 _functions]\n    E[register_tool 对象] --> F[保存到 _tools]\n    G[execute_tool name / parameters] --> H{名称在 _functions?}\n    H -->|是| I[取出 func]\n    I --> J[func parameters]\n    J --> K[返回函数结果]\n    H -->|否| L[返回工具不存在]\n    D -.供查询.-> H\n    F -.当前执行方法不查询对象表.-> L"
+  }
+]

@@ -1,0 +1,38 @@
+{
+  "defaultProvider": "deepseek",
+  "providers": {
+    "ollama": {
+      "baseUrl": "http://localhost:11434/v1",
+      "apiKey": "ollama",
+      "defaultModel": "qwen3.5:4b",
+      "models": [
+        {
+          "id": "qwen3.5:4b"
+        }
+      ]
+    },
+    "deepseek": {
+      "baseUrl": "https://api.deepseek.com",
+      "apiKeyEnv": "DEEPSEEK_API_KEY",
+      "defaultModel": "deepseek-flash",
+      "models": [
+        {
+          "id": "deepseek-flash"
+        },
+        {
+          "id": "deepseek-v4-pro"
+        }
+      ]
+    },
+    "modelscope": {
+      "baseUrl": "https://api-inference.modelscope.cn/v1/",
+      "apiKeyEnv": "MODELSCOPE_API_KEY",
+      "defaultModel": "deepseek-ai/DeepSeek-V4.1-Flash",
+      "models": [
+        {
+          "id": "deepseek-ai/DeepSeek-V4.1-Flash"
+        }
+      ]
+    }
+  }
+}

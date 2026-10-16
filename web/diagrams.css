@@ -1,0 +1,24 @@
+.diagram-panel[hidden]{display:none}
+.diagram-panel{padding:22px 26px;background:#fff;min-width:0}
+.diagram-toolbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.diagram-toolbar label{display:flex;align-items:center;gap:12px;font-size:16px;font-weight:600;color:#364254}
+.diagram-toolbar select{min-width:240px;padding:10px 34px 10px 12px;border:1px solid #dce1e8;background:#fff;border-radius:10px;font-size:16px;color:#27364a}
+#diagram-kind{font-size:13px;color:#6d7d92;background:#f0f3f7;border-radius:7px;padding:5px 9px}
+.diagram-actions{display:flex;gap:6px;margin-left:auto}
+.diagram-panel button{border:1px solid #dde3eb;background:#fff;color:#4d6079;padding:8px 12px;border-radius:9px;font:inherit;font-size:14px;cursor:pointer}
+.diagram-panel button:hover{background:#edf3fa;border-color:#b9c9dc}
+#diagram-description{font-size:16px;line-height:1.7;color:#657187;margin:16px 0}
+#diagram-viewport{height:clamp(450px,65vh,900px);overflow:hidden;position:relative;background:radial-gradient(#dfe5ed .8px,transparent .8px) 0 0 / 22px 22px #fafbfd;border:1px solid #e5e9ef;border-radius:14px;touch-action:none}
+#diagram-stage{position:absolute;left:0;top:0;transform-origin:0 0;color:#6d7d92;font-size:16px}
+#diagram-stage svg{display:block;overflow:visible}
+.diagram-hint{position:absolute;left:14px;bottom:12px;background:#fafbfdec;color:#7b8798;font-size:12px;padding:5px 8px;border-radius:6px;pointer-events:none}
+#diagram-viewport.panning{cursor:grabbing}
+.diagram-source-link{cursor:pointer;text-decoration:underline;text-underline-offset:4px}
+.diagram-source-link:hover,.diagram-source-link:focus{filter:drop-shadow(0 0 3px #8faac4);outline:none}
+#diagram-sources{display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:17px 0;color:#78859a;font-size:14px}
+.diagram-definition{border-top:1px solid #e7ebf0;padding-top:14px;color:#748198;font-size:14px}
+.diagram-definition summary{cursor:pointer;width:max-content}
+.diagram-definition pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f7fa;border-radius:10px;padding:20px;color:#48596e;font-size:14px;line-height:1.7;max-height:380px;overflow:auto}
+.reader-flows{margin-top:20px}
+@media(max-width:700px){.diagram-panel{padding:16px}.diagram-actions{margin-left:0}.diagram-hint{font-size:11px}.diagram-toolbar select{min-width:190px}}
+@media(prefers-reduced-motion:reduce){.diagram-panel *{scroll-behavior:auto}}

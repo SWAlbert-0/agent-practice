@@ -1,0 +1,20 @@
+# 本地密钥和环境配置，仅提交模板
+.env
+.env.*
+!.env.example
+
+# Python 缓存、测试缓存和虚拟环境
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+env/
+.coverage
+htmlcov/
+
+# 本地编辑器配置和系统文件
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

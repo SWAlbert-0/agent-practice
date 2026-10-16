@@ -1,0 +1,98 @@
+/* 按需阅读：主页面聚焦画布，说明与源码只存在于模态窗口中。 */
+[hidden] { display: none !important; }
+.workbench { display: block; }
+main { margin: 0 auto; padding: 0 28px 24px; max-width: 1920px; }
+.map-header { height: 66px; border: 0; }
+.map-header h1 { font-size: 18px; font-weight: 550; letter-spacing: 0; margin: 0; }
+.map-header h1 span { color: #8b9992; font-weight: 400; margin-right: 7px; }
+.canvas { height: calc(100dvh - 136px); min-height: 420px; }
+.graph-viewport { overflow: hidden; touch-action: none; }
+#graph { position: absolute; width: 940px; height: 660px; overflow: visible; transform-origin: 0 0; will-change: transform; }
+#edges { width: 940px; height: 660px; overflow: visible; }
+.graph-viewport.panning, .graph-viewport.panning .graph-node { cursor: grabbing; user-select: none; }
+.map-actions { display: flex; align-items: center; gap: 18px; }
+.map-actions > span { font-size: 13px; color: #8c9995; }
+.map-actions .outline-button { font-size: 14px; padding: 8px 12px; }
+.map-header .outline-button { font-size: 14px; }
+.view-tabs button { font-size: 14px; padding: 8px 12px; }
+.graph-node { cursor: grab; touch-action: none; user-select: none; }
+.graph-node.dragging { cursor: grabbing; z-index: 3; box-shadow: 0 8px 24px #234b3326; }
+.zoom-controls #zoom-label { font-size: 10px; }
+
+.modal-open { overflow: hidden; }
+#detail-dialog {
+  width: 96vw;
+  max-width: 1800px;
+  height: 94dvh;
+  max-height: 94dvh;
+  padding: 0;
+  overflow: hidden;
+  background: #fff;
+  color: #243c43;
+  border: 1px solid #dde5db;
+  border-radius: 14px;
+}
+#detail-dialog[open] { display: flex; flex-direction: column; }
+#detail-dialog .detail-top { flex-shrink: 0; padding: 15px 22px; background: #f8faf6; font-size: 15px; }
+#detail-dialog .status { font-size: 12px; }
+#detail-dialog .detail-top button { border-radius: 5px; padding: 3px 8px; }
+#detail-dialog .detail-top button:hover { background: #e8efe4; }
+#close-detail { font-size: 22px; margin-left: 10px; line-height: 1; }
+.detail-tabs { flex-shrink: 0; display: flex; gap: 22px; padding: 0 28px; border-bottom: 1px solid #e4e9e4; }
+.detail-tabs button { padding: 14px 2px 12px; color: #8a998d; font-size: 15px; border-bottom: 2px solid transparent; }
+.detail-tabs button[aria-selected="true"] { color: #2e7362; border-bottom-color: #2e7362; }
+#detail-content { overflow: auto; overscroll-behavior: contain; min-height: 0; flex: 1; }
+#detail-dialog .detail-summary { padding: 25px 28px 15px; }
+#detail-dialog .detail-summary h2 { font-size: 25px; }
+#detail-dialog .detail-summary p:not(.eyebrow) { font-size: 16px; max-width: 90ch; margin-top: 17px; }
+#detail-dialog .eyebrow { font-size: 12px; }
+#detail-dialog .file-path { font-size: 13px; }
+#detail-dialog .detail-section { padding: 0 28px 24px; }
+#detail-dialog .detail-section h3 { font-size: 14px; margin: 14px 0 10px; }
+#detail-dialog .detail-section li { font-size: 16px; line-height: 2; }
+#detail-dialog .io-row { font-size: 15px; margin: 12px 0; grid-template-columns: 44px 1fr; }
+#detail-dialog .code-header, #detail-dialog .code-block { margin-left: 28px; margin-right: 28px; }
+#detail-dialog .code-header { padding: 12px; font-size: 13px; }
+#detail-dialog .code-header button { font-size: 13px; }
+#detail-dialog .code-block { max-height: calc(94dvh - 310px); min-height: min(320px, 40dvh); font-size: 15px; padding: 18px 0; }
+#detail-dialog .symbol-section { padding: 0 28px 10px; }
+#detail-dialog .symbol-picker { font-size: 14px; padding: 10px; }
+#detail-dialog .line-number { width: 45px; }
+#detail-dialog .code-link { color: #8bd4c3; }
+#detail-dialog .relation-button { padding: 8px 10px; font-size: 14px; }
+#detail-dialog .relation-tag { font-size: 12px; }
+#detail-dialog .empty-code { margin: 0 28px 22px; font-size: 14px; }
+#detail-dialog[data-view="explanation"] .source-body { display: none; }
+#detail-dialog[data-view="source"] .explanation-body,
+#detail-dialog[data-view="source"] .detail-summary > p { display: none; }
+.dialog-hint { padding: 12px 28px; color: #92a18e; font-size: 13px; border-top: 1px solid #e4e9e4; background: #fafcf8; flex-shrink: 0; }
+.dialog-hint span { float: right; }
+/* 仅调整画布外的阅读与操作文字，节点、连线和地图倍率保持原样。 */
+.flow-controls > div:first-child { font-size: 13px; }
+.simulation-label { font-size: 12px; }
+.playback button, .playback select { font-size: 14px; }
+.event-box > span { font-size: 13px; }
+.event-box strong { font-size: 15px; }
+.event-box p { font-size: 14px; }
+.event-box code { font-size: 13px; line-height: 1.8; }
+#guide-dialog p, #guide-dialog li { font-size: 15px; }
+@media (max-width: 1200px) {
+  .flow-controls { flex-direction: row; align-items: center; }
+}
+@media (max-width: 640px) {
+  .canvas { height: calc(100dvh - 128px); }
+  .map-actions > span { display: none; }
+  .panel-toolbar { flex-wrap: wrap; }
+  .map-actions { margin-left: auto; }
+  main { margin: 0; padding: 0 12px 18px; }
+  .flow-controls { flex-direction: column; align-items: flex-start; }
+  #detail-dialog { width: calc(100vw - 16px); height: 96dvh; max-height: 96dvh; border-radius: 10px; }
+  #detail-dialog .detail-top { padding: 12px 14px; }
+  .detail-tabs { padding: 0 18px; }
+  #detail-dialog .detail-summary { padding: 20px 18px 12px; }
+  #detail-dialog .detail-section { padding-left: 18px; padding-right: 18px; }
+  #detail-dialog .code-header, #detail-dialog .code-block { margin-left: 12px; margin-right: 12px; }
+  #detail-dialog .symbol-section { padding-left: 12px; padding-right: 12px; }
+  #detail-dialog .code-block { font-size: 14px; }
+  .dialog-hint { padding: 12px 18px; }
+}

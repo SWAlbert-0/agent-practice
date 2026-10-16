@@ -1,0 +1,45 @@
+"""Agent基类"""
+from abc import ABC, abstractmethod
+from typing import Optional, Any
+from .message import Message
+from .llm import HelloAgentsLLM
+from .config import Config
+
+# 通过继承 ABC 被定义为一个不能直接实例化的抽象类
+class Agent(ABC):
+    """Agent基类"""
+
+    # 构造函数 __init__ 清晰地定义了 Agent 的核心依赖：名称、LLM 实例、系统提示词和配置。
+    def __init__(
+        self,
+        name: str,
+        llm: HelloAgentsLLM,
+        system_prompt: Optional[str] = None,
+        config: Optional[Config] = None
+    ):
+        self.name = name
+        self.llm = llm
+        self.system_prompt = system_prompt
+        self.config = config or Config()
+        self._history: list[Message] = []
+
+    # 使用 @abstractmethod 装饰的 run 方法，强制所有子类必须实现此方法，从而保证了所有智能体都有统一的执行入口。
+    @abstractmethod
+    def run(self, input_text: str, **kwargs) -> str:
+        """运行Agent"""
+        pass
+    
+    def add_message(self, message: Message):
+        """添加消息到历史记录"""
+        self._history.append(message)
+    
+    def clear_history(self):
+        """清空历史记录"""
+        self._history.clear()
+    
+    def get_history(self) -> list[Message]:
+        """获取历史记录"""
+        return self._history.copy()
+    
+    def __str__(self) -> str:
+        return f"Agent(name={self.name}, provider={self.llm.provider})"
