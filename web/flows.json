@@ -166,7 +166,7 @@
     "id": "calculator",
     "title": "计算器编排调用",
     "kind": "时序图",
-    "document": "docs/计算器工具调用流程.md",
+    "document": "docs/工具调用流程.md",
     "description": "测试手动执行 calculate，再由本地 LLM.think 组织回答。",
     "sources": [
       {
@@ -198,7 +198,8 @@
         "label": "think",
         "match": "LLM"
       }
-    ]
+    ],
+    "block": 1
   },
   {
     "id": "evaluate",
