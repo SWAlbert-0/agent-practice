@@ -24,82 +24,28 @@
 
 ## 架构图
 
-图中实线表示调用、配置读取或继承，虚线表示说明与关联。各示例会分别创建模型客户端，并非共享全局实例。
+按主要模块展示项目结构，省略具体函数与类的继承关系。
 
 ```mermaid
 flowchart TB
-    subgraph Entry[运行入口]
-        Main[main.py：直接调用模型]
-        SimpleDemo[test_simple_agent.py]
-        ReflectDemo[test_reflection_agent.py]
-        PlanDemo[test_plan_solve_agent.py]
-        CalcDemo[test_calculator.py]
-    end
+    Entry[运行入口：main.py / test]
+    Agents[Agent：对话 · ReAct · 反思 · 规划执行]
+    LLM[模型接入：core/llm.py]
+    Tools[工具模块：注册表 · 计算器]
+    Config[配置：models.json / .env]
+    Services[模型服务：DeepSeek / ModelScope / Ollama]
+    Web[研发地图：源码查看 · 流程演示]
 
-    subgraph Agents[Agent 实现]
-        Simple[本地 SimpleAgent]
-        React[本地 ReActAgent]
-        Reflect[ReflectionAgent 与 Memory]
-        Plan[PlanAndSolveAgent]
-        Planner[Planner：生成计划]
-        Executor[Executor：逐步执行]
-        Plan --> Planner
-        Plan --> Executor
-    end
-
-    subgraph Model[模型连接]
-        Factory[core/llm.py：create_llm]
-        Settings[models.json：服务商与模型]
-        Env[本地 .env：API Key]
-        LLM[框架 HelloAgentsLLM]
-        API[配置的模型服务：DeepSeek / ModelScope / Ollama]
-        Factory -->|读取| Settings
-        Factory -->|读取| Env
-        Factory -->|创建| LLM
-        LLM -->|OpenAI 兼容 API| API
-    end
-
-    Main --> Factory
-    Main --> LLM
-    SimpleDemo --> Factory
-    ReflectDemo --> Factory
-    PlanDemo --> Factory
-    CalcDemo --> Factory
-    SimpleDemo --> Simple
-    ReflectDemo --> Reflect
-    PlanDemo --> Plan
-    Simple --> LLM
-    React --> LLM
-    Reflect --> LLM
-    Planner --> LLM
-    Executor --> LLM
-    CalcDemo -->|工具计算后生成回答| LLM
-
-    subgraph Tools[工具与框架依赖]
-        Framework[框架 SimpleAgent / ReActAgent 基类]
-        FrameworkTools[框架 ToolRegistry 与 CalculatorTool]
-        LocalRegistry[本地 ToolRegistry]
-        Calc[calculate 与递归 AST 求值]
-        Simple -->|继承| Framework
-        React -->|继承| Framework
-        SimpleDemo -->|注入工具注册表| FrameworkTools
-        Simple -->|当前示例工具调用| FrameworkTools
-        React -->|调用传入注册表| FrameworkTools
-        LocalRegistry -->|执行已注册函数| Calc
-    end
-    CalcDemo --> LocalRegistry
-
-    subgraph Support[基础定义与可视化]
-        Core[本地 core/agent.py、message.py、config.py]
-        Web[web：研发地图与源码阅读]
-        Docs[docs：源码分析与流程图]
-        Core -.->|本地基础定义，尚未统一接入上述 Agent| Agents
-        Web -.->|索引源码与展示关系，信息流为模拟| Agents
-        Docs -.->|记录调用流程| Tools
-    end
+    Entry --> Agents
+    Entry -->|直接调用| LLM
+    Agents --> LLM
+    Agents -->|按需调用| Tools
+    Config --> LLM
+    LLM --> Services
+    Web -.->|展示与讲解| Agents
 ```
 
-当前 `main.py` 直接调用模型，尚未接入 Agent。计算器测试由测试函数手动调用工具后，再请求模型组织回答，没有实例化 `SimpleAgent`。本地与框架的注册表是两个不同实现，不能假定接口完全一致。
+`main.py` 直接调用模型，Agent 示例位于 `test/`。研发地图用于查看源码与演示流程，不参与实际推理。
 
 ## 功能模块
 
