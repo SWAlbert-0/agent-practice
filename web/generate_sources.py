@@ -11,11 +11,11 @@ SOURCE_FILES = (
     "main.py", "core/llm.py", "core/agent.py", "core/message.py", "core/config.py",
     "agents/simple_agent.py", "agents/react_agent.py", "agents/reflection_agent.py",
     "agents/plan_solve_agent.py", "tools/base.py", "tools/registry.py",
-    "tools/calculator_tool.py", "tools/search_tool.py", "tools/advanced_search.py",
-    "tools/chain.py", "tools/async_executor.py", "test/test_simple_agent.py",
-    "test/test_react_agent.py", "test/test_calculator.py", "test/test_calculator_tool.py",
-    "test/test_tool_registry.py", "test/test_reflection_agent.py",
-    "test/test_plan_solve_agent.py", "test/test_advanced_search.py",
+    "tools/calculator_tool.py", "tools/search_tool.py", "tests/test_search_tool.py",
+    "tools/chain.py", "tools/async_executor.py", "examples/simple_agent_demo.py",
+    "tests/test_react_agent.py", "examples/calculator_demo.py", "tests/test_calculator_tool.py",
+    "tests/test_tool_registry.py", "examples/reflection_agent_demo.py",
+    "examples/plan_solve_agent_demo.py", "examples/search_demo.py",
 )
 
 

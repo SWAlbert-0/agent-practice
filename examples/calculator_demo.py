@@ -1,12 +1,9 @@
-# test_calculate.py
 from dotenv import load_dotenv
 from tools.calculator_tool import create_calculator_registry
 from core.llm import create_llm
 
-# 加载环境变量
-load_dotenv()
 
-def test_calculator_tool():
+def demo_calculator_tool():
     """测试自定义计算器工具"""
 
     # 创建包含计算器的注册表
@@ -28,7 +25,7 @@ def test_calculator_tool():
         result = registry.execute_tool("calculate", expression)
         print(f"结果: {result}\n")
 
-def test_calculator_with_llm():
+def demo_calculator_with_llm():
     """计算器执行后由LLM组织回答，不创建Agent"""
     
     # 创建LLM客户端
@@ -60,5 +57,6 @@ def test_calculator_with_llm():
     print("\n")
 
 if __name__ == "__main__":
-    test_calculator_tool()
-    test_calculator_with_llm()
+    load_dotenv()
+    demo_calculator_tool()
+    demo_calculator_with_llm()

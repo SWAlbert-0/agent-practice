@@ -1096,161 +1096,301 @@
     "origin": "project"
   },
   "tools/search_tool.py": {
-    "code": "from tools.base import Tool\nimport os\nfrom typing import Optional\n\nclass SearchTool(Tool):\n    \"\"\"\n    智能混合搜索工具\n\n    支持多种搜索引擎后端，智能选择最佳搜索源:\n    1. 混合模式 (hybrid) - 智能选择TAVILY或SERPAPI\n    2. Tavily API (tavily) - 专业AI搜索\n    3. SerpApi (serpapi) - 传统Google搜索\n    \"\"\"\n\n    def __init__(self, backend: str = \"hybrid\", tavily_key: Optional[str] = None, serpapi_key: Optional[str] = None):\n        super().__init__(\n            name=\"search\",\n            description=\"一个智能网页搜索引擎。支持混合搜索模式，自动选择最佳搜索源。\"\n        )\n        self.backend = backend\n        self.tavily_key = tavily_key or os.getenv(\"TAVILY_API_KEY\")\n        self.serpapi_key = serpapi_key or os.getenv(\"SERPAPI_API_KEY\")\n        self.available_backends = []\n        self._setup_backends()\n\n    def _search_hybrid(self, query: str) -> str:\n        \"\"\"\"混合搜索 - 智能选择最佳搜索源\"\"\"\n        # 优先使用 Tavily（AI优化的搜索）\n        if \"tavily\" in self.available_backends:\n            try:\n                return self._search_tavily(query)\n            except Exception as e:\n                print(f\"⚠️ Tavily搜索失败: {e}\")\n                # 如果Tavily失败，尝试SerpApi\n                if \"serpapi\" in self.available_backends:\n                    print(\"🔄 切换到SerpApi搜索\")\n                    return self._search_serpapi(query)\n\n        # 如果Tavily不可用，使用SerpApi\n        elif \"serpapi\" in self.available_backends:\n            try:\n                return self._search_serpapi(query)\n            except Exception as e:\n                print(f\"⚠️ SerpApi搜索失败: {e}\")\n\n        # 如果都不可用，提示用户配置API\n        return \"❌ 没有可用的搜索源，请配置TAVILY_API_KEY或SERPAPI_API_KEY环境变量\"\n\n    def _search_tavily(self, query: str) -> str:\n        \"\"\"\"使用Tavily搜索\"\"\"\n        response = self.tavily_client.search(\n            query = query,\n            search_depth = \"basic\",\n            include_answer = True,\n            max_results = 3\n        )\n\n        result = f\"🎯 Tavily AI搜索结果:{response.get('answer', '未找到直接答案')}\\n\\n\"\n\n        for i, item in enumerate(response.get('results', [][:3], 1)):\n            result += f\"[{i}] {item.get('title', '')}\\n\"\n            result += f\"    {item.get('content', '')[:200]}...\\n\"\n            result += f\"    来源: {item.get('url', '')}\\n\\n\"\n\n        return result\n\n    def _search_serpapi(self, query: str) -> str:\n        \"\"\"使用SerpApi搜索，返回直接答案及前三条网页结果\"\"\"\n        import serpapi\n\n        # 新版 SDK 使用 Client，密钥沿用构造函数读取的 SERPAPI_API_KEY。\n        client = serpapi.Client(api_key=self.serpapi_key)\n        response = client.search({\n            \"engine\": \"google\",\n            \"q\": query,\n            \"gl\": \"cn\",\n            \"hl\": \"zh-cn\"\n        })\n\n        # answer_box 是搜索结果中的直接答案，可能只有摘要而没有 answer。\n        answer_box = response.get(\"answer_box\", {})\n        answer = answer_box.get(\"answer\") or answer_box.get(\"snippet\", \"\")\n        items = response.get(\"organic_results\", [])[:3]\n\n        if not answer and not items:\n            return f\"未找到关于 '{query}' 的搜索结果。\"\n\n        result = \"🔍 SerpApi Google搜索结果:\\n\\n\"\n        if answer:\n            result += f\"💡 直接答案: {answer}\\n\\n\"\n\n        # SerpApi 的摘要、链接字段分别是 snippet、link，与 Tavily 不同。\n        for i, item in enumerate(items, 1):\n            result += f\"[{i}] {item.get('title', '')}\\n\"\n            result += f\"    {item.get('snippet', '')[:200]}...\\n\"\n            result += f\"    来源: {item.get('link', '')}\\n\\n\"\n\n        return result\n",
+    "code": "\"\"\"网页搜索工具：优先使用 Tavily，可回退到 SerpApi。\"\"\"\n\nimport os\nfrom typing import Optional\n\nfrom tools.base import Tool, ToolParameter\nfrom tools.registry import ToolRegistry\n\n\nclass SearchTool(Tool):\n    \"\"\"统一的搜索入口，支持 hybrid、tavily 和 serpapi 后端。\"\"\"\n\n    def __init__(self, backend: str = \"hybrid\", tavily_key: Optional[str] = None,\n                 serpapi_key: Optional[str] = None):\n        super().__init__(name=\"search\", description=\"搜索网页，返回标题、摘要和来源链接。\")\n        if backend not in (\"hybrid\", \"tavily\", \"serpapi\"):\n            raise ValueError(f\"不支持的搜索后端: {backend}\")\n        self.backend = backend\n        self.tavily_key = tavily_key or os.getenv(\"TAVILY_API_KEY\")\n        self.serpapi_key = serpapi_key or os.getenv(\"SERPAPI_API_KEY\")\n        self.available_backends = []\n        self._setup_backends()\n\n    def _setup_backends(self):\n        \"\"\"只初始化选用且已配置的 SDK，不在初始化时发起搜索。\"\"\"\n        if self.backend in (\"hybrid\", \"tavily\") and self.tavily_key:\n            try:\n                from tavily import TavilyClient\n            except ImportError:\n                print(\"⚠️ 请安装 tavily-python 以使用 Tavily\")\n            else:\n                self.tavily_client = TavilyClient(api_key=self.tavily_key)\n                self.available_backends.append(\"tavily\")\n\n        if self.backend in (\"hybrid\", \"serpapi\") and self.serpapi_key:\n            try:\n                from serpapi import Client\n            except ImportError:\n                print(\"⚠️ 请安装 serpapi 以使用 SerpApi Client\")\n            else:\n                self.serpapi_client = Client(api_key=self.serpapi_key)\n                self.available_backends.append(\"serpapi\")\n\n    def run(self, parameters: dict) -> str:\n        \"\"\"query 供 Agent 传入；input 供注册表的字符串入口传入。\"\"\"\n        query = parameters.get(\"query\") or parameters.get(\"input\", \"\")\n        return self.search(query)\n\n    def get_parameters(self) -> list[ToolParameter]:\n        return [ToolParameter(name=\"query\", type=\"string\", description=\"要搜索的关键词或问题\")]\n\n    def search(self, query: str) -> str:\n        \"\"\"按配置顺序尝试搜索源；空结果或请求失败时尝试下一源。\"\"\"\n        if not query.strip():\n            return \"搜索查询不能为空\"\n        if not self.available_backends:\n            return \"没有可用的搜索源，请配置搜索密钥并安装对应 SDK\"\n\n        errors = []\n        for backend in self.available_backends:\n            try:\n                result = (self._search_tavily(query) if backend == \"tavily\"\n                          else self._search_serpapi(query))\n                if result:\n                    return result\n            except Exception as error:\n                # 后端之间可以回退；日志不输出可能携带凭证的异常正文。\n                print(f\"⚠️ {backend} 搜索失败（{type(error).__name__}）\")\n                errors.append(backend)\n        if errors:\n            return \"搜索未成功，请检查网络、搜索服务配置或更换查询\"\n        return f\"未找到关于 '{query}' 的搜索结果\"\n\n    def _search_tavily(self, query: str) -> str:\n        response = self.tavily_client.search(\n            query=query, search_depth=\"basic\", include_answer=True, max_results=3\n        )\n        answer = response.get(\"answer\")\n        items = response.get(\"results\", [])[:3]\n        if not answer and not items:\n            return \"\"\n\n        result = \"📊 Tavily 搜索结果:\\n\"\n        if answer:\n            result += f\"直接答案: {answer}\\n\\n\"\n        for i, item in enumerate(items, 1):\n            result += f\"[{i}] {item.get('title', '')}\\n\"\n            result += f\"    {item.get('content', '')[:200]}\\n\"\n            result += f\"    来源: {item.get('url', '')}\\n\\n\"\n        return result\n\n    def _search_serpapi(self, query: str) -> str:\n        response = self.serpapi_client.search({\n            \"engine\": \"google\", \"q\": query, \"gl\": \"cn\", \"hl\": \"zh-cn\"\n        })\n        if response.get(\"error\"):\n            raise RuntimeError(\"SerpApi 返回错误响应\")\n        answer_box = response.get(\"answer_box\", {})\n        answer = answer_box.get(\"answer\") or answer_box.get(\"snippet\")\n        items = response.get(\"organic_results\", [])[:3]\n        if not answer and not items:\n            return \"\"\n\n        result = \"🌐 SerpApi 搜索结果:\\n\"\n        if answer:\n            result += f\"直接答案: {answer}\\n\\n\"\n        for i, item in enumerate(items, 1):\n            result += f\"[{i}] {item.get('title', '')}\\n\"\n            result += f\"    {item.get('snippet', '')[:200]}\\n\"\n            result += f\"    来源: {item.get('link', '')}\\n\\n\"\n        return result\n\n\ndef create_search_registry(backend: str = \"hybrid\") -> ToolRegistry:\n    \"\"\"创建注册了 search 对象工具的本地注册表。\"\"\"\n    registry = ToolRegistry()\n    registry.register_tool(SearchTool(backend=backend))\n    return registry\n",
     "symbols": {
       "SearchTool": {
-        "start": 5,
-        "end": 98,
-        "doc": "智能混合搜索工具\n\n支持多种搜索引擎后端，智能选择最佳搜索源:\n1. 混合模式 (hybrid) - 智能选择TAVILY或SERPAPI\n2. Tavily API (tavily) - 专业AI搜索\n3. SerpApi (serpapi) - 传统Google搜索"
+        "start": 10,
+        "end": 111,
+        "doc": "统一的搜索入口，支持 hybrid、tavily 和 serpapi 后端。"
       },
       "SearchTool.__init__": {
-        "start": 15,
-        "end": 24,
+        "start": 13,
+        "end": 22,
         "doc": ""
       },
-      "SearchTool._search_hybrid": {
-        "start": 26,
+      "SearchTool._setup_backends": {
+        "start": 24,
+        "end": 42,
+        "doc": "只初始化选用且已配置的 SDK，不在初始化时发起搜索。"
+      },
+      "SearchTool.run": {
+        "start": 44,
         "end": 47,
-        "doc": "\"混合搜索 - 智能选择最佳搜索源"
+        "doc": "query 供 Agent 传入；input 供注册表的字符串入口传入。"
+      },
+      "SearchTool.get_parameters": {
+        "start": 49,
+        "end": 50,
+        "doc": ""
+      },
+      "SearchTool.search": {
+        "start": 52,
+        "end": 72,
+        "doc": "按配置顺序尝试搜索源；空结果或请求失败时尝试下一源。"
       },
       "SearchTool._search_tavily": {
-        "start": 49,
-        "end": 65,
-        "doc": "\"使用Tavily搜索"
+        "start": 74,
+        "end": 90,
+        "doc": ""
       },
       "SearchTool._search_serpapi": {
-        "start": 67,
-        "end": 98,
-        "doc": "使用SerpApi搜索，返回直接答案及前三条网页结果"
+        "start": 92,
+        "end": 111,
+        "doc": ""
+      },
+      "create_search_registry": {
+        "start": 114,
+        "end": 118,
+        "doc": "创建注册了 search 对象工具的本地注册表。"
       }
     },
     "calls": [
       {
-        "line": 5,
+        "line": 10,
         "start": 17,
         "end": 21,
         "file": "tools/base.py",
         "symbol": "Tool"
       },
       {
-        "line": 16,
+        "line": 15,
         "start": 8,
         "end": 24,
         "file": "tools/base.py",
         "symbol": "Tool.__init__"
       },
       {
-        "line": 31,
-        "start": 23,
-        "end": 42,
+        "line": 22,
+        "start": 8,
+        "end": 28,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool._setup_backends"
+      },
+      {
+        "line": 47,
+        "start": 15,
+        "end": 26,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.search"
+      },
+      {
+        "line": 50,
+        "start": 16,
+        "end": 29,
+        "file": "tools/base.py",
+        "symbol": "ToolParameter"
+      },
+      {
+        "line": 62,
+        "start": 26,
+        "end": 45,
         "file": "tools/search_tool.py",
         "symbol": "SearchTool._search_tavily"
       },
       {
-        "line": 37,
-        "start": 27,
-        "end": 47,
+        "line": 63,
+        "start": 31,
+        "end": 51,
         "file": "tools/search_tool.py",
         "symbol": "SearchTool._search_serpapi"
       },
       {
-        "line": 42,
-        "start": 23,
-        "end": 43,
-        "file": "tools/search_tool.py",
-        "symbol": "SearchTool._search_serpapi"
-      }
-    ],
-    "origin": "project"
-  },
-  "tools/advanced_search.py": {
-    "code": "import os\nfrom typing import Optional, List, Dict, Any\nfrom tools.registry import ToolRegistry\n\nclass AdvancedSearchTool:\n    \"\"\"\n    自定义高级搜索工具类\n    展示多源整合和智能选择的设计模式\n    \"\"\"\n\n    def __init__(self):\n        self.name = \"advanced_search\"\n        self.description = \"智能搜索工具，支持多个搜索源，自动选择最佳结果\"\n        self.search_sources = []\n        self._setup_search_sources()\n\n    def _setup_search_sources(self):\n        \"\"\"设置可用的搜索源\"\"\"\n        # 检查Tavily可用性\n        if os.getenv(\"TAVILY_API_KEY\"):\n            try:\n                from tavily import TavilyClient\n                self.tavily_client = TavilyClient(api_key=os.getenv(\"TAVILY_API_KEY\"))\n                self.search_sources.append(\"tavily\")\n                print(\"✅ Tavily搜索源已启用\")\n            except ImportError:\n                print(\"⚠️ Tavily库未安装\")\n\n        if os.getenv(\"SERPAPI_API_KEY\"):\n            try:\n                import serpapi\n                self.search_sources.append(\"serpapi\")\n                print(\"✅ SerpApi搜索源已启用\")\n            except ImportError:\n                print(\"⚠️ SerpApi库未安装\")\n\n        if self.search_sources:\n            print(f\"🔧 可用搜索源: {', '.join(self.search_sources)}\")\n        else:\n            print(\"⚠️ 没有可用的搜索源，请配置API密钥\")\n\n    def search(self, query: str) -> str:\n        \"\"\"执行智能搜索\"\"\"\n        if not query.strip():\n            return \"❌ 错误:搜索查询不能为空\"\n\n        # 检查是否有可用的搜索源\n        if not self.search_sources:\n            return \"\"\"❌ 没有可用的搜索源，请配置以下API密钥之一:\n1. Tavily API: 设置环境变量 TAVILY_API_KEY\n获取地址: https://tavily.com/\n\n2. SerpAPI: 设置环境变量 SERPAPI_API_KEY\n获取地址: https://serpapi.com/\n\n配置后重新运行程序。\"\"\"\n\n        print(f\"🔍 开始智能搜索: {query}\")\n\n        # 尝试多个搜索源，返回最佳结果\n        for source in self.search_sources:\n            try:\n                if source == \"tavily\":\n                    result = self._search_with_tavily(query)\n                    if result and \"未找到\" not in result:\n                        return f\"📊 Tavily AI搜索结果:\\n\\n{result}\"\n\n                elif source == \"serpapi\":\n                    result = self._search_with_serpapi(query)\n                    if result and \"未找到\" not in result:\n                        return f\"🌐 SerpApi Google搜索结果:\\n\\n{result}\"\n\n            except Exception as e:\n                print(f\"⚠️ {source} 搜索失败: {e}\")\n                continue\n\n        return \"❌ 所有搜索源都失败了，请检查网络连接和API密钥配置\"\n\n    def _search_with_tavily(self, query: str) -> str:\n        \"\"\"使用Tavily搜索\"\"\"\n        response = self.tavily_client.search(query=query, max_results=3)\n\n        if response.get('answer'):\n            result = f\"💡 AI直接答案:{response['answer']}\\n\\n\"\n        else:\n            result = \"\"\n\n        result += \"🔗 相关结果:\\n\"\n        for i, item in enumerate(response.get('results', [])[:3], 1):\n            result += f\"[{i}] {item.get('title', '')}\\n\"\n            result += f\"    {item.get('content', '')[:150]}...\\n\\n\"\n\n        return result\n\n    def _search_with_serpapi(self, query: str) -> str:\n        \"\"\"使用SerpApi搜索\"\"\"\n        import serpapi\n\n        search = serpapi.GoogleSearch({\n            \"q\": query,\n            \"api_key\": os.getenv(\"SERPAPI_API_KEY\"),\n            \"num\": 3\n        })\n\n        results = search.get_dict()\n\n        result = \"🔗 Google搜索结果:\\n\"\n        if \"organic_results\" in results:\n            for i, res in enumerate(results[\"organic_results\"][:3], 1):\n                result += f\"[{i}] {res.get('title', '')}\\n\"\n                result += f\"    {res.get('snippet', '')}\\n\\n\"\n\n        return result\n\ndef create_advanced_search_registry():\n    \"\"\"创建包含高级搜索工具的注册表\"\"\"\n    registry = ToolRegistry()\n\n    # 创建搜索工具实例\n    search_tool = AdvancedSearchTool()\n\n    # 注册搜索工具的方法作为函数\n    registry.register_function(\n        name=\"advanced_search\",\n        description=\"高级搜索工具，整合Tavily和SerpAPI多个搜索源，提供更全面的搜索结果\",\n        func=search_tool.search\n    )\n\n    return registry\n",
-    "symbols": {
-      "AdvancedSearchTool": {
-        "start": 5,
-        "end": 113,
-        "doc": "自定义高级搜索工具类\n展示多源整合和智能选择的设计模式"
-      },
-      "AdvancedSearchTool.__init__": {
-        "start": 11,
-        "end": 15,
-        "doc": ""
-      },
-      "AdvancedSearchTool._setup_search_sources": {
-        "start": 17,
-        "end": 40,
-        "doc": "设置可用的搜索源"
-      },
-      "AdvancedSearchTool.search": {
-        "start": 42,
-        "end": 77,
-        "doc": "执行智能搜索"
-      },
-      "AdvancedSearchTool._search_with_tavily": {
-        "start": 79,
-        "end": 93,
-        "doc": "使用Tavily搜索"
-      },
-      "AdvancedSearchTool._search_with_serpapi": {
-        "start": 95,
-        "end": 113,
-        "doc": "使用SerpApi搜索"
-      },
-      "create_advanced_search_registry": {
-        "start": 115,
-        "end": 129,
-        "doc": "创建包含高级搜索工具的注册表"
-      }
-    },
-    "calls": [
-      {
-        "line": 15,
-        "start": 8,
-        "end": 34,
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool._setup_search_sources"
-      },
-      {
-        "line": 64,
-        "start": 29,
-        "end": 53,
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool._search_with_tavily"
-      },
-      {
-        "line": 69,
-        "start": 29,
-        "end": 54,
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool._search_with_serpapi"
-      },
-      {
-        "line": 117,
+        "line": 116,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.__init__"
       },
       {
-        "line": 120,
-        "start": 18,
-        "end": 36,
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool.__init__"
-      },
-      {
-        "line": 123,
+        "line": 117,
         "start": 4,
-        "end": 30,
+        "end": 26,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_function"
+        "symbol": "ToolRegistry.register_tool"
       },
       {
-        "line": 126,
+        "line": 117,
+        "start": 27,
+        "end": 37,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.__init__"
+      }
+    ],
+    "origin": "project"
+  },
+  "tests/test_search_tool.py": {
+    "code": "\"\"\"搜索工具的离线测试：模拟 SDK，不读取真实密钥或访问网络。\"\"\"\n\nimport importlib\nimport sys\nfrom types import SimpleNamespace\nfrom unittest.mock import Mock\n\nimport pytest\n\nfrom agents.simple_agent import SimpleAgent\nfrom tools.search_tool import SearchTool, create_search_registry\n\n\n@pytest.fixture\ndef clients(monkeypatch):\n    tavily = Mock()\n    serpapi = Mock()\n    tavily.search.return_value = {\"results\": []}\n    serpapi.search.return_value = {\"organic_results\": []}\n    monkeypatch.setenv(\"TAVILY_API_KEY\", \"test-tavily\")\n    monkeypatch.setenv(\"SERPAPI_API_KEY\", \"test-serpapi\")\n    monkeypatch.setitem(sys.modules, \"tavily\", SimpleNamespace(TavilyClient=Mock(return_value=tavily)))\n    monkeypatch.setitem(sys.modules, \"serpapi\", SimpleNamespace(Client=Mock(return_value=serpapi)))\n    return tavily, serpapi\n\n\ndef test_registration_does_not_search_and_supports_both_input_keys(clients):\n    tavily, serpapi = clients\n    registry = create_search_registry()\n    tavily.search.assert_not_called()\n    serpapi.search.assert_not_called()\n    tool = registry.get_tool(\"search\")\n    assert isinstance(tool, SearchTool)\n    assert tool.get_parameters()[0].name == \"query\"\n    tavily.search.return_value = {\"results\": [{\"title\": \"Python\", \"content\": \"语言\", \"url\": \"https://python.org\"}]}\n    assert \"https://python.org\" in registry.execute_tool(\"search\", \"Python\")\n    assert \"Python\" in tool.run({\"query\": \"Python\"})\n    assert tavily.search.call_args.kwargs[\"query\"] == \"Python\"\n    serpapi.search.assert_not_called()\n\n\n@pytest.mark.parametrize(\"mode\", [\"empty\", \"error\"])\ndef test_hybrid_falls_back_on_empty_results_or_exception(clients, mode):\n    tavily, serpapi = clients\n    if mode == \"error\":\n        tavily.search.side_effect = RuntimeError(\"request failed\")\n    serpapi.search.return_value = {\"organic_results\": [{\"title\": \"来源\", \"snippet\": \"摘要\", \"link\": \"https://example.com\"}]}\n    result = SearchTool().search(\"query\")\n    assert \"SerpApi\" in result\n    assert \"https://example.com\" in result\n    assert serpapi.search.call_args.args[0][\"q\"] == \"query\"\n\n\n@pytest.mark.parametrize(\"backend\", [\"tavily\", \"serpapi\"])\ndef test_explicit_backend_does_not_use_other_source(clients, backend):\n    tavily, serpapi = clients\n    tool = SearchTool(backend=backend)\n    assert tool.available_backends == [backend]\n    assert \"未找到\" in tool.search(\"query\")\n    other = serpapi if backend == \"tavily\" else tavily\n    other.search.assert_not_called()\n\n\ndef test_empty_query_and_no_credentials_do_not_request(clients, monkeypatch):\n    monkeypatch.delenv(\"TAVILY_API_KEY\")\n    monkeypatch.delenv(\"SERPAPI_API_KEY\")\n    tool = SearchTool()\n    assert \"不能为空\" in tool.search(\" \")\n    assert \"没有可用\" in tool.search(\"query\")\n    for client in clients:\n        client.search.assert_not_called()\n\n\ndef test_missing_optional_sdks(monkeypatch):\n    monkeypatch.setenv(\"TAVILY_API_KEY\", \"test\")\n    monkeypatch.setenv(\"SERPAPI_API_KEY\", \"test\")\n    monkeypatch.setitem(sys.modules, \"tavily\", None)\n    monkeypatch.setitem(sys.modules, \"serpapi\", None)\n    assert SearchTool().available_backends == []\n\n\ndef test_all_backend_errors_return_failure_without_credentials(clients, capsys):\n    tavily, serpapi = clients\n    tavily.search.side_effect = RuntimeError(\"test-tavily\")\n    serpapi.search.return_value = {\"error\": \"test-serpapi\"}\n    result = SearchTool().search(\"query\")\n    assert \"搜索未成功\" in result\n    output = capsys.readouterr().out\n    assert \"test-tavily\" not in output\n    assert \"test-serpapi\" not in output\n\n\ndef test_unknown_backend_is_rejected():\n    with pytest.raises(ValueError):\n        SearchTool(backend=\"unknown\")\n\n\ndef test_simple_agent_receives_search_result(clients):\n    tavily, _ = clients\n    tavily.search.return_value = {\"results\": [{\"title\": \"Python\", \"url\": \"https://python.org\"}]}\n    llm = Mock()\n    llm.invoke.side_effect = [\"[TOOL_CALL:search:Python]\", \"已找到 Python 官方网站\"]\n    agent = SimpleAgent(\"搜索助手\", llm, tool_registry=create_search_registry())\n    assert agent.run(\"搜索 Python\") == \"已找到 Python 官方网站\"\n    messages = llm.invoke.call_args.args[0]\n    assert any(\"https://python.org\" in message[\"content\"] for message in messages)\n    tavily.search.assert_called_once()\n\n\ndef test_importing_examples_does_not_create_clients(monkeypatch):\n    monkeypatch.setattr(\"core.llm.create_llm\", Mock(side_effect=AssertionError(\"unexpected LLM\")))\n    monkeypatch.setattr(\"tools.search_tool.create_search_registry\", Mock(side_effect=AssertionError(\"unexpected search\")))\n    for name in (\"simple_agent\", \"reflection_agent\", \"plan_solve_agent\", \"calculator\", \"search\"):\n        module = importlib.import_module(f\"examples.{name}_demo\")\n        importlib.reload(module)\n",
+    "symbols": {
+      "clients": {
+        "start": 14,
+        "end": 24,
+        "doc": ""
+      },
+      "test_registration_does_not_search_and_supports_both_input_keys": {
+        "start": 27,
+        "end": 39,
+        "doc": ""
+      },
+      "test_hybrid_falls_back_on_empty_results_or_exception": {
+        "start": 42,
+        "end": 51,
+        "doc": ""
+      },
+      "test_explicit_backend_does_not_use_other_source": {
+        "start": 54,
+        "end": 61,
+        "doc": ""
+      },
+      "test_empty_query_and_no_credentials_do_not_request": {
+        "start": 64,
+        "end": 71,
+        "doc": ""
+      },
+      "test_missing_optional_sdks": {
+        "start": 74,
+        "end": 79,
+        "doc": ""
+      },
+      "test_all_backend_errors_return_failure_without_credentials": {
+        "start": 82,
+        "end": 90,
+        "doc": ""
+      },
+      "test_unknown_backend_is_rejected": {
+        "start": 93,
+        "end": 95,
+        "doc": ""
+      },
+      "test_simple_agent_receives_search_result": {
+        "start": 98,
+        "end": 107,
+        "doc": ""
+      },
+      "test_importing_examples_does_not_create_clients": {
+        "start": 110,
+        "end": 115,
+        "doc": ""
+      }
+    },
+    "calls": [
+      {
+        "line": 29,
+        "start": 15,
+        "end": 37,
+        "file": "tools/search_tool.py",
+        "symbol": "create_search_registry"
+      },
+      {
+        "line": 32,
+        "start": 11,
+        "end": 28,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tool"
+      },
+      {
+        "line": 36,
+        "start": 35,
+        "end": 56,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 48,
         "start": 13,
+        "end": 32,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.search"
+      },
+      {
+        "line": 48,
+        "start": 13,
+        "end": 23,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.__init__"
+      },
+      {
+        "line": 57,
+        "start": 11,
+        "end": 21,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.__init__"
+      },
+      {
+        "line": 59,
+        "start": 20,
         "end": 31,
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool.search"
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.search"
+      },
+      {
+        "line": 67,
+        "start": 11,
+        "end": 21,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.__init__"
+      },
+      {
+        "line": 68,
+        "start": 21,
+        "end": 32,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.search"
+      },
+      {
+        "line": 69,
+        "start": 21,
+        "end": 32,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.search"
+      },
+      {
+        "line": 79,
+        "start": 11,
+        "end": 21,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.__init__"
+      },
+      {
+        "line": 86,
+        "start": 13,
+        "end": 32,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.search"
+      },
+      {
+        "line": 86,
+        "start": 13,
+        "end": 23,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.__init__"
+      },
+      {
+        "line": 95,
+        "start": 8,
+        "end": 18,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.__init__"
+      },
+      {
+        "line": 103,
+        "start": 12,
+        "end": 23,
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent.__init__"
+      },
+      {
+        "line": 103,
+        "start": 51,
+        "end": 73,
+        "file": "tools/search_tool.py",
+        "symbol": "create_search_registry"
+      },
+      {
+        "line": 104,
+        "start": 11,
+        "end": 20,
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent.run"
       }
     ],
     "origin": "project"
@@ -1414,112 +1554,125 @@
     ],
     "origin": "project"
   },
-  "test/test_simple_agent.py": {
-    "code": "# test_simple_agent.py\nfrom tools.registry import ToolRegistry\nfrom tools.calculator_tool import CalculatorTool\nfrom agents.simple_agent import SimpleAgent\nfrom core.llm import create_llm\n\n\n# 创建LLM实例\nllm = create_llm()\n\n# 测试1:基础对话Agent（无工具）\nprint(\"=== 测试1:基础对话 ===\")\nbasic_agent = SimpleAgent(\n    name=\"基础助手\",\n    llm=llm,\n    system_prompt=\"你是一个友好的AI助手，请用简洁明了的方式回答问题。\"\n)\n\nresponse1 = basic_agent.run(\"你好，请介绍一下自己\")\nprint(f\"基础对话响应: {response1}\\n\")\n\n# 测试2:带工具的Agent\nprint(\"=== 测试2:工具增强对话 ===\")\ntool_registry = ToolRegistry()\ncalculator = CalculatorTool()\ntool_registry.register_tool(calculator)\n\nenhanced_agent = SimpleAgent(\n    name=\"增强助手\",\n    llm=llm,\n    system_prompt=\"你是一个智能助手，可以使用工具来帮助用户。\",\n    tool_registry=tool_registry,\n    enable_tool_calling=True\n)\n\nresponse2 = enhanced_agent.run(\"请帮我计算 15 * 8 + 32\")\nprint(f\"工具增强响应: {response2}\\n\")\n\n# 测试3:流式响应\nprint(\"=== 测试3:流式响应 ===\")\nprint(\"流式响应: \", end=\"\")\nfor chunk in basic_agent.stream_run(\"请解释什么是人工智能\"):\n    pass  # 内容已在stream_run中实时打印\n\n# 测试4:动态添加工具\nprint(\"\\n=== 测试4:动态工具管理 ===\")\nprint(f\"添加工具前: {basic_agent.has_tools()}\")\nbasic_agent.add_tool(calculator)\nprint(f\"添加工具后: {basic_agent.has_tools()}\")\nprint(f\"可用工具: {basic_agent.list_tools()}\")\n\n# 查看对话历史\nprint(f\"\\n对话历史: {len(basic_agent.get_history())} 条消息\")\n",
-    "symbols": {},
+  "examples/simple_agent_demo.py": {
+    "code": "from tools.registry import ToolRegistry\nfrom tools.calculator_tool import CalculatorTool\nfrom agents.simple_agent import SimpleAgent\nfrom core.llm import create_llm\n\n\ndef main():\n    # 创建LLM实例\n    llm = create_llm()\n\n    # 测试1:基础对话Agent（无工具）\n    print(\"=== 测试1:基础对话 ===\")\n    basic_agent = SimpleAgent(\n        name=\"基础助手\",\n        llm=llm,\n        system_prompt=\"你是一个友好的AI助手，请用简洁明了的方式回答问题。\"\n    )\n\n    response1 = basic_agent.run(\"你好，请介绍一下自己\")\n    print(f\"基础对话响应: {response1}\\n\")\n\n    # 测试2:带工具的Agent\n    print(\"=== 测试2:工具增强对话 ===\")\n    tool_registry = ToolRegistry()\n    calculator = CalculatorTool()\n    tool_registry.register_tool(calculator)\n\n    enhanced_agent = SimpleAgent(\n        name=\"增强助手\",\n        llm=llm,\n        system_prompt=\"你是一个智能助手，可以使用工具来帮助用户。\",\n        tool_registry=tool_registry,\n        enable_tool_calling=True\n    )\n\n    response2 = enhanced_agent.run(\"请帮我计算 15 * 8 + 32\")\n    print(f\"工具增强响应: {response2}\\n\")\n\n    # 测试3:流式响应\n    print(\"=== 测试3:流式响应 ===\")\n    print(\"流式响应: \", end=\"\")\n    for chunk in basic_agent.stream_run(\"请解释什么是人工智能\"):\n        pass  # 内容已在stream_run中实时打印\n\n    # 测试4:动态添加工具\n    print(\"\\n=== 测试4:动态工具管理 ===\")\n    print(f\"添加工具前: {basic_agent.has_tools()}\")\n    basic_agent.add_tool(calculator)\n    print(f\"添加工具后: {basic_agent.has_tools()}\")\n    print(f\"可用工具: {basic_agent.list_tools()}\")\n\n    # 查看对话历史\n    print(f\"\\n对话历史: {len(basic_agent.get_history())} 条消息\")\n\n\nif __name__ == \"__main__\":\n    main()\n",
+    "symbols": {
+      "main": {
+        "start": 7,
+        "end": 53,
+        "doc": ""
+      }
+    },
     "calls": [
       {
         "line": 9,
-        "start": 6,
-        "end": 16,
+        "start": 10,
+        "end": 20,
         "file": "core/llm.py",
         "symbol": "create_llm"
       },
       {
         "line": 13,
-        "start": 14,
-        "end": 25,
+        "start": 18,
+        "end": 29,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.__init__"
       },
       {
         "line": 19,
-        "start": 12,
-        "end": 27,
+        "start": 16,
+        "end": 31,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.run"
       },
       {
         "line": 24,
-        "start": 16,
-        "end": 28,
+        "start": 20,
+        "end": 32,
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.__init__"
       },
       {
         "line": 25,
-        "start": 13,
-        "end": 27,
+        "start": 17,
+        "end": 31,
         "file": "tools/calculator_tool.py",
         "symbol": "CalculatorTool.__init__"
       },
       {
         "line": 26,
-        "start": 0,
-        "end": 27,
+        "start": 4,
+        "end": 31,
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.register_tool"
       },
       {
         "line": 28,
-        "start": 17,
-        "end": 28,
+        "start": 21,
+        "end": 32,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.__init__"
       },
       {
         "line": 36,
-        "start": 12,
-        "end": 30,
+        "start": 16,
+        "end": 34,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.run"
       },
       {
         "line": 42,
-        "start": 13,
-        "end": 35,
+        "start": 17,
+        "end": 39,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.stream_run"
       },
       {
         "line": 47,
-        "start": 16,
-        "end": 37,
+        "start": 20,
+        "end": 41,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.has_tools"
       },
       {
         "line": 48,
-        "start": 0,
-        "end": 20,
+        "start": 4,
+        "end": 24,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.add_tool"
       },
       {
         "line": 49,
-        "start": 16,
-        "end": 37,
+        "start": 20,
+        "end": 41,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.has_tools"
       },
       {
         "line": 50,
-        "start": 15,
-        "end": 37,
+        "start": 19,
+        "end": 41,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.list_tools"
       },
       {
         "line": 53,
-        "start": 21,
-        "end": 44,
+        "start": 25,
+        "end": 48,
         "file": "core/agent.py",
         "symbol": "Agent.get_history"
+      },
+      {
+        "line": 57,
+        "start": 4,
+        "end": 8,
+        "file": "examples/simple_agent_demo.py",
+        "symbol": "main"
       }
     ],
     "origin": "project"
   },
-  "test/test_react_agent.py": {
+  "tests/test_react_agent.py": {
     "code": "\"\"\"本地ReAct流程的离线测试，不请求模型服务。\"\"\"\n\nimport pytest\n\nfrom agents.react_agent import ReActAgent\nfrom core.agent import Agent\nfrom core.config import Config\nfrom core.message import Message\nfrom tools.calculator_tool import CalculatorTool\nfrom tools.registry import ToolRegistry\n\n\nclass FakeLLM:\n    provider = \"offline\"\n\n    def __init__(self, responses):\n        self.responses = iter(responses)\n        self.requests = []\n\n    def invoke(self, messages, **kwargs):\n        self.requests.append((messages, kwargs))\n        return next(self.responses)\n\n\ndef test_local_base_and_initialization():\n    llm = FakeLLM([])\n    registry = ToolRegistry()\n    config = Config(debug=True)\n    agent = ReActAgent(\"test\", llm, registry, system_prompt=\"system\", config=config)\n\n    assert ReActAgent.__bases__ == (Agent,)\n    assert agent.llm is llm\n    assert agent.tool_registry is registry\n    assert agent.config is config\n    assert agent.system_prompt == \"system\"\n    assert agent.get_history() == []\n\n\ndef test_direct_finish_and_local_message_history():\n    llm = FakeLLM([\"Thought: ready\\nAction: Finish[answer]\"])\n    agent = ReActAgent(\"test\", llm, ToolRegistry())\n\n    assert agent.run(\"question\", temperature=0) == \"answer\"\n    assert llm.requests[0][1] == {\"temperature\": 0}\n    history = agent.get_history()\n    assert [(message.role, message.content) for message in history] == [\n        (\"user\", \"question\"), (\"assistant\", \"answer\")\n    ]\n    assert all(isinstance(message, Message) for message in history)\n    agent.clear_history()\n    assert agent.get_history() == []\n\n\ndef test_calculator_result_reaches_next_model_request():\n    llm = FakeLLM([\n        \"Thought: calculate\\nAction: calculator[15 * 8 + 32]\",\n        \"Thought: done\\nAction: Finish[152]\",\n    ])\n    registry = ToolRegistry()\n    registry.register_tool(CalculatorTool())\n    agent = ReActAgent(\"test\", llm, registry)\n\n    assert agent.run(\"calculate\") == \"152\"\n    assert \"Observation: 152\" in llm.requests[1][0][0][\"content\"]\n    assert len(agent.get_history()) == 2\n\n\ndef test_step_limit_and_current_task_reset():\n    llm = FakeLLM([\n        \"Thought: working\\nAction: echo[first]\",\n        \"Thought: done\\nAction: Finish[second]\",\n    ])\n    registry = ToolRegistry()\n    registry.register_function(\"echo\", \"echo input\", lambda text: text)\n    agent = ReActAgent(\"test\", llm, registry, max_steps=1)\n\n    assert agent.run(\"first question\") == \"抱歉，我无法在限定步数内完成这个任务。\"\n    assert len(llm.requests) == 1\n    assert agent.current_history\n    assert agent.run(\"second question\") == \"second\"\n    assert agent.current_history == []\n    assert \"Observation: first\" not in llm.requests[1][0][0][\"content\"]\n\n\n@pytest.mark.parametrize(\"text, expected\", [\n    (\"Thought: reason\\nAction: Finish[done]\", (\"reason\", \"Finish[done]\")),\n    (\"Thought: reason\", (\"reason\", None)),\n    (\"unstructured response\", (None, None)),\n])\ndef test_output_parser(text, expected):\n    agent = ReActAgent(\"test\", FakeLLM([]), ToolRegistry())\n\n    assert agent._parse_output(text) == expected\n\n\ndef test_action_parser_and_finish_input():\n    agent = ReActAgent(\"test\", FakeLLM([]), ToolRegistry())\n\n    assert agent._parse_action(\"calculator[sqrt(16)]\") == (\"calculator\", \"sqrt(16)\")\n    assert agent._parse_action_input(\"Finish[answer]\") == \"answer\"\n    assert agent._parse_action(\"invalid\") == (None, None)\n    assert agent._parse_action_input(\"invalid\") == \"\"\n",
     "symbols": {
       "FakeLLM": {
@@ -1573,7 +1726,7 @@
         "line": 26,
         "start": 10,
         "end": 17,
-        "file": "test/test_react_agent.py",
+        "file": "tests/test_react_agent.py",
         "symbol": "FakeLLM.__init__"
       },
       {
@@ -1608,7 +1761,7 @@
         "line": 40,
         "start": 10,
         "end": 17,
-        "file": "test/test_react_agent.py",
+        "file": "tests/test_react_agent.py",
         "symbol": "FakeLLM.__init__"
       },
       {
@@ -1657,7 +1810,7 @@
         "line": 55,
         "start": 10,
         "end": 17,
-        "file": "test/test_react_agent.py",
+        "file": "tests/test_react_agent.py",
         "symbol": "FakeLLM.__init__"
       },
       {
@@ -1706,7 +1859,7 @@
         "line": 69,
         "start": 10,
         "end": 17,
-        "file": "test/test_react_agent.py",
+        "file": "tests/test_react_agent.py",
         "symbol": "FakeLLM.__init__"
       },
       {
@@ -1755,7 +1908,7 @@
         "line": 91,
         "start": 31,
         "end": 38,
-        "file": "test/test_react_agent.py",
+        "file": "tests/test_react_agent.py",
         "symbol": "FakeLLM.__init__"
       },
       {
@@ -1783,7 +1936,7 @@
         "line": 97,
         "start": 31,
         "end": 38,
-        "file": "test/test_react_agent.py",
+        "file": "tests/test_react_agent.py",
         "symbol": "FakeLLM.__init__"
       },
       {
@@ -1824,81 +1977,81 @@
     ],
     "origin": "project"
   },
-  "test/test_calculator.py": {
-    "code": "# test_calculate.py\nfrom dotenv import load_dotenv\nfrom tools.calculator_tool import create_calculator_registry\nfrom core.llm import create_llm\n\n# 加载环境变量\nload_dotenv()\n\ndef test_calculator_tool():\n    \"\"\"测试自定义计算器工具\"\"\"\n\n    # 创建包含计算器的注册表\n    registry = create_calculator_registry()\n\n    print(\"🧪 测试自定义计算器工具\\n\")\n\n    # 简单测试用例\n    test_cases = [\n        \"2 + 3\",           # 基本加法\n        \"10 - 4\",          # 基本减法\n        \"5 * 6\",           # 基本乘法\n        \"15 / 3\",          # 基本除法\n        \"sqrt(16)\",        # 平方根\n    ]\n\n    for i, expression in enumerate(test_cases, 1):\n        print(f\"测试 {i}: {expression}\")\n        result = registry.execute_tool(\"calculate\", expression)\n        print(f\"结果: {result}\\n\")\n\ndef test_calculator_with_llm():\n    \"\"\"计算器执行后由LLM组织回答，不创建Agent\"\"\"\n    \n    # 创建LLM客户端\n    llm = create_llm()\n\n    # 创建包含计算器的注册表\n    registry = create_calculator_registry()\n\n    print(\"🤖 计算器与LLM编排测试:\")\n\n    # 手动编排工具调用与模型回答\n    user_question = \"请帮我计算 sqrt(16) + 2 * 3\"\n\n    print(f\"用户问题: {user_question}\")\n\n    # 使用工具计算\n    calc_result = registry.execute_tool(\"calculate\", \"sqrt(16) + 2 * 3\")\n    print(f\"计算结果: {calc_result}\")\n\n    # 构建最终回答\n    final_messages = [\n        {\"role\": \"user\", \"content\": f\"计算结果是 {calc_result}，请用自然语言回答用户的问题:{user_question}\"}\n    ]\n\n    print(\"\\n🎯 模型回答:\")\n    response = llm.think(final_messages)\n    for chunk in response:\n        print(chunk, end=\"\", flush=True)\n    print(\"\\n\")\n\nif __name__ == \"__main__\":\n    test_calculator_tool()\n    test_calculator_with_llm()\n",
+  "examples/calculator_demo.py": {
+    "code": "from dotenv import load_dotenv\nfrom tools.calculator_tool import create_calculator_registry\nfrom core.llm import create_llm\n\n\ndef demo_calculator_tool():\n    \"\"\"测试自定义计算器工具\"\"\"\n\n    # 创建包含计算器的注册表\n    registry = create_calculator_registry()\n\n    print(\"🧪 测试自定义计算器工具\\n\")\n\n    # 简单测试用例\n    test_cases = [\n        \"2 + 3\",           # 基本加法\n        \"10 - 4\",          # 基本减法\n        \"5 * 6\",           # 基本乘法\n        \"15 / 3\",          # 基本除法\n        \"sqrt(16)\",        # 平方根\n    ]\n\n    for i, expression in enumerate(test_cases, 1):\n        print(f\"测试 {i}: {expression}\")\n        result = registry.execute_tool(\"calculate\", expression)\n        print(f\"结果: {result}\\n\")\n\ndef demo_calculator_with_llm():\n    \"\"\"计算器执行后由LLM组织回答，不创建Agent\"\"\"\n    \n    # 创建LLM客户端\n    llm = create_llm()\n\n    # 创建包含计算器的注册表\n    registry = create_calculator_registry()\n\n    print(\"🤖 计算器与LLM编排测试:\")\n\n    # 手动编排工具调用与模型回答\n    user_question = \"请帮我计算 sqrt(16) + 2 * 3\"\n\n    print(f\"用户问题: {user_question}\")\n\n    # 使用工具计算\n    calc_result = registry.execute_tool(\"calculate\", \"sqrt(16) + 2 * 3\")\n    print(f\"计算结果: {calc_result}\")\n\n    # 构建最终回答\n    final_messages = [\n        {\"role\": \"user\", \"content\": f\"计算结果是 {calc_result}，请用自然语言回答用户的问题:{user_question}\"}\n    ]\n\n    print(\"\\n🎯 模型回答:\")\n    response = llm.think(final_messages)\n    for chunk in response:\n        print(chunk, end=\"\", flush=True)\n    print(\"\\n\")\n\nif __name__ == \"__main__\":\n    load_dotenv()\n    demo_calculator_tool()\n    demo_calculator_with_llm()\n",
     "symbols": {
-      "test_calculator_tool": {
-        "start": 9,
-        "end": 29,
+      "demo_calculator_tool": {
+        "start": 6,
+        "end": 26,
         "doc": "测试自定义计算器工具"
       },
-      "test_calculator_with_llm": {
-        "start": 31,
-        "end": 60,
+      "demo_calculator_with_llm": {
+        "start": 28,
+        "end": 57,
         "doc": "计算器执行后由LLM组织回答，不创建Agent"
       }
     },
     "calls": [
       {
-        "line": 13,
+        "line": 10,
         "start": 15,
         "end": 41,
         "file": "tools/calculator_tool.py",
         "symbol": "create_calculator_registry"
       },
       {
-        "line": 28,
+        "line": 25,
         "start": 17,
         "end": 38,
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.execute_tool"
       },
       {
-        "line": 35,
+        "line": 32,
         "start": 10,
         "end": 20,
         "file": "core/llm.py",
         "symbol": "create_llm"
       },
       {
-        "line": 38,
+        "line": 35,
         "start": 15,
         "end": 41,
         "file": "tools/calculator_tool.py",
         "symbol": "create_calculator_registry"
       },
       {
-        "line": 48,
+        "line": 45,
         "start": 18,
         "end": 39,
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.execute_tool"
       },
       {
-        "line": 57,
+        "line": 54,
         "start": 15,
         "end": 24,
         "file": "core/llm.py",
         "symbol": "LLM.think"
       },
       {
-        "line": 63,
+        "line": 61,
         "start": 4,
         "end": 24,
-        "file": "test/test_calculator.py",
-        "symbol": "test_calculator_tool"
+        "file": "examples/calculator_demo.py",
+        "symbol": "demo_calculator_tool"
       },
       {
-        "line": 64,
+        "line": 62,
         "start": 4,
         "end": 28,
-        "file": "test/test_calculator.py",
-        "symbol": "test_calculator_with_llm"
+        "file": "examples/calculator_demo.py",
+        "symbol": "demo_calculator_with_llm"
       }
     ],
     "origin": "project"
   },
-  "test/test_calculator_tool.py": {
+  "tests/test_calculator_tool.py": {
     "code": "\"\"\"本地计算器对象与函数工具的离线测试。\"\"\"\n\nimport pytest\n\nfrom tools.base import Tool\nfrom tools.calculator_tool import CalculatorTool, create_calculator_registry\n\n\n@pytest.mark.parametrize(\"expression, expected\", [\n    (\"15 * 8 + 32\", \"152\"),\n    (\"(2 + 3) * 4\", \"20\"),\n    (\"sqrt(16) + 2 * 3\", \"10.0\"),\n])\ndef test_calculator_object_execution(expression, expected):\n    tool = CalculatorTool()\n\n    assert isinstance(tool, Tool)\n    assert tool.name == \"calculator\"\n    assert tool.run({\"input\": expression}) == expected\n\n\ndef test_expression_parameter_compatibility():\n    tool = CalculatorTool()\n\n    assert tool.run({\"expression\": \"2 + 3\"}) == \"5\"\n    assert tool.run({\"input\": \"\", \"expression\": \"2 + 3\"}) == \"5\"\n    assert tool.run({\"input\": \"2 + 3\", \"expression\": \"9 + 9\"}) == \"5\"\n\n\ndef test_missing_input_and_calculation_errors():\n    tool = CalculatorTool()\n\n    assert tool.run({}) == \"计算表达式不能为空\"\n    assert tool.run({\"input\": \"   \"}) == \"计算表达式不能为空\"\n    assert tool.run({\"input\": \"1 / 0\"}).startswith(\"计算失败:\")\n    assert tool.run({\"input\": \"2 +\"}).startswith(\"计算失败:\")\n\n\ndef test_calculator_parameters_match_run_input():\n    parameters = CalculatorTool().get_parameters()\n\n    assert len(parameters) == 1\n    assert parameters[0].name == \"input\"\n    assert parameters[0].type == \"string\"\n    assert parameters[0].required is True\n\n\ndef test_object_and_existing_function_registration():\n    registry = create_calculator_registry()\n    tool = CalculatorTool()\n    registry.register_tool(tool)\n\n    assert registry.execute_tool(\"calculate\", \"sqrt(16)\") == \"4.0\"\n    assert registry.execute_tool(\"calculator\", \"15 * 8 + 32\") == \"152\"\n    assert registry.get_tool(\"calculator\") is tool\n    assert registry.list_tools() == [\"calculator\", \"calculate\"]\n    assert registry.unregister_tool(\"calculator\") is True\n    assert registry.execute_tool(\"calculate\", \"2 + 3\") == \"5\"\n",
     "symbols": {
       "test_calculator_object_execution": {
@@ -2085,7 +2238,7 @@
     ],
     "origin": "project"
   },
-  "test/test_tool_registry.py": {
+  "tests/test_tool_registry.py": {
     "code": "\"\"\"本地工具注册表的离线测试，不访问模型或搜索服务。\"\"\"\n\nimport pytest\n\nfrom tools.base import Tool, ToolParameter\nfrom tools.registry import ToolRegistry\n\n\nclass EchoTool(Tool):\n    def __init__(self, name=\"echo\"):\n        super().__init__(name, \"返回输入文本\")\n\n    def run(self, parameters):\n        return parameters[\"input\"]\n\n    def get_parameters(self):\n        return [ToolParameter(name=\"input\", type=\"string\", description=\"输入文本\")]\n\n\ndef test_object_tool_lookup_execution_and_removal():\n    registry = ToolRegistry()\n    tool = EchoTool()\n    registry.register_tool(tool)\n\n    assert registry.get_tool(\"echo\") is tool\n    assert registry.execute_tool(\"echo\", \"hello\") == \"hello\"\n    assert registry.list_tools() == [\"echo\"]\n    assert \"echo\" in registry.get_tools_description()\n    assert registry.unregister_tool(\"echo\") is True\n    assert registry.get_tool(\"echo\") is None\n    assert registry.list_tools() == []\n\n\ndef test_function_tool_keeps_string_input_and_can_be_removed():\n    registry = ToolRegistry()\n    registry.register_function(\"uppercase\", \"转大写\", str.upper)\n\n    assert registry.execute_tool(\"uppercase\", \"hello\") == \"HELLO\"\n    assert registry.get_tool(\"uppercase\") is None\n    assert registry.list_tools() == [\"uppercase\"]\n    assert registry.unregister_tool(\"uppercase\") is True\n    assert registry.list_tools() == []\n\n\ndef test_missing_tool():\n    registry = ToolRegistry()\n\n    assert registry.get_tool(\"missing\") is None\n    assert registry.execute_tool(\"missing\", \"hello\") == \"工具不存在: missing\"\n    assert registry.unregister_tool(\"missing\") is False\n\n\ndef test_same_name_prefers_object_and_removes_both_registrations():\n    registry = ToolRegistry()\n    registry.register_function(\"echo\", \"函数工具\", lambda text: \"function\")\n    registry.register_tool(EchoTool())\n\n    assert registry.execute_tool(\"echo\", \"object\") == \"object\"\n    assert registry.list_tools() == [\"echo\"]\n    assert registry.unregister_tool(\"echo\") is True\n    assert registry.execute_tool(\"echo\", \"hello\") == \"工具不存在: echo\"\n    assert registry.list_tools() == []\n\n\ndef test_tool_exception_is_not_hidden():\n    def fail(text):\n        raise ValueError(\"工具执行失败\")\n\n    registry = ToolRegistry()\n    registry.register_function(\"fail\", \"抛出异常\", fail)\n\n    with pytest.raises(ValueError, match=\"工具执行失败\"):\n        registry.execute_tool(\"fail\", \"hello\")\n",
     "symbols": {
       "EchoTool": {
@@ -2167,7 +2320,7 @@
         "line": 22,
         "start": 11,
         "end": 19,
-        "file": "test/test_tool_registry.py",
+        "file": "tests/test_tool_registry.py",
         "symbol": "EchoTool.__init__"
       },
       {
@@ -2328,7 +2481,7 @@
         "line": 56,
         "start": 27,
         "end": 35,
-        "file": "test/test_tool_registry.py",
+        "file": "tests/test_tool_registry.py",
         "symbol": "EchoTool.__init__"
       },
       {
@@ -2390,151 +2543,177 @@
     ],
     "origin": "project"
   },
-  "test/test_reflection_agent.py": {
-    "code": "# test_reflection_agent.py\nfrom agents.reflection_agent import ReflectionAgent\nfrom core.llm import create_llm\n\n\n# 创建LLM实例\nllm = create_llm()\n\n# 使用默认通用提示词\ngeneral_agent = ReflectionAgent(name=\"我的反思助手\", llm=llm)\n\n# 使用自定义代码生成提示词（类似第四章）\ncode_prompts = {\n    \"initial\": \"你是Python专家，请编写函数:{task}\",\n    \"reflect\": \"请审查代码的算法效率:\\n任务:{task}\\n代码:{content}\\n\"\n               \"如果代码已经满足要求，请仅输出\\\"无需改进\\\"，不要添加标点、解释或其他文字。\"\n               \"否则请指出具体问题和改进建议。\",\n    \"refine\": \"请根据反馈优化代码:\\n任务:{task}\\n反馈:{feedback}\"\n}\ncode_agent = ReflectionAgent(\n    name=\"我的代码生成助手\",\n    llm=llm,\n    custom_prompts=code_prompts\n)\n\nresult = code_agent.run(\"编写一个函数，接收整数列表，返回去重后按升序排列的列表\")\n\nprint(f\"最终结果: {result}\")\n",
-    "symbols": {},
+  "examples/reflection_agent_demo.py": {
+    "code": "from agents.reflection_agent import ReflectionAgent\nfrom core.llm import create_llm\n\n\ndef main():\n    # 创建LLM实例\n    llm = create_llm()\n\n    # 使用默认通用提示词\n    general_agent = ReflectionAgent(name=\"我的反思助手\", llm=llm)\n\n    # 使用自定义代码生成提示词（类似第四章）\n    code_prompts = {\n        \"initial\": \"你是Python专家，请编写函数:{task}\",\n        \"reflect\": \"请审查代码的算法效率:\\n任务:{task}\\n代码:{content}\\n\"\n                   \"如果代码已经满足要求，请仅输出\\\"无需改进\\\"，不要添加标点、解释或其他文字。\"\n                   \"否则请指出具体问题和改进建议。\",\n        \"refine\": \"请根据反馈优化代码:\\n任务:{task}\\n反馈:{feedback}\"\n    }\n    code_agent = ReflectionAgent(\n        name=\"我的代码生成助手\",\n        llm=llm,\n        custom_prompts=code_prompts\n    )\n\n    result = code_agent.run(\"编写一个函数，接收整数列表，返回去重后按升序排列的列表\")\n\n    print(f\"最终结果: {result}\")\n\n\nif __name__ == \"__main__\":\n    main()\n",
+    "symbols": {
+      "main": {
+        "start": 5,
+        "end": 28,
+        "doc": ""
+      }
+    },
     "calls": [
       {
         "line": 7,
-        "start": 6,
-        "end": 16,
+        "start": 10,
+        "end": 20,
         "file": "core/llm.py",
         "symbol": "create_llm"
       },
       {
         "line": 10,
-        "start": 16,
-        "end": 31,
+        "start": 20,
+        "end": 35,
         "file": "agents/reflection_agent.py",
         "symbol": "ReflectionAgent.__init__"
       },
       {
         "line": 20,
-        "start": 13,
-        "end": 28,
+        "start": 17,
+        "end": 32,
         "file": "agents/reflection_agent.py",
         "symbol": "ReflectionAgent.__init__"
       },
       {
         "line": 26,
-        "start": 9,
-        "end": 23,
+        "start": 13,
+        "end": 27,
         "file": "agents/reflection_agent.py",
         "symbol": "ReflectionAgent.run"
+      },
+      {
+        "line": 32,
+        "start": 4,
+        "end": 8,
+        "file": "examples/reflection_agent_demo.py",
+        "symbol": "main"
       }
     ],
     "origin": "project"
   },
-  "test/test_plan_solve_agent.py": {
-    "code": "# test_plan_solve_agent.py\nfrom agents.plan_solve_agent import PlanAndSolveAgent\nfrom core.llm import create_llm\n\n# 创建LLM实例\nllm = create_llm()\n\n# 创建自定义PlanAndSolveAgent\n# agent = PlanAndSolveAgent(\n#     name=\"我的规划执行助手\",\n#     llm=llm\n# )\nagent = PlanAndSolveAgent(llm_client=llm)\n\n# 测试复杂问题\nquestion = \"一个水果店周一卖出了15个苹果。周二卖出的苹果数量是周一的两倍。周三卖出的数量比周二少了5个。请问这三天总共卖出了多少个苹果？\"\n\nresult = agent.run(question)\nprint(f\"\\n最终结果: {result}\")\n",
-    "symbols": {},
+  "examples/plan_solve_agent_demo.py": {
+    "code": "from agents.plan_solve_agent import PlanAndSolveAgent\nfrom core.llm import create_llm\n\n\ndef main():\n    # 创建LLM实例\n    llm = create_llm()\n\n    # 创建自定义PlanAndSolveAgent\n    # agent = PlanAndSolveAgent(\n    #     name=\"我的规划执行助手\",\n    #     llm=llm\n    # )\n    agent = PlanAndSolveAgent(llm_client=llm)\n\n    # 测试复杂问题\n    question = \"一个水果店周一卖出了15个苹果。周二卖出的苹果数量是周一的两倍。周三卖出的数量比周二少了5个。请问这三天总共卖出了多少个苹果？\"\n\n    result = agent.run(question)\n    print(f\"\\n最终结果: {result}\")\n\n\nif __name__ == \"__main__\":\n    main()\n",
+    "symbols": {
+      "main": {
+        "start": 5,
+        "end": 20,
+        "doc": ""
+      }
+    },
     "calls": [
       {
-        "line": 6,
-        "start": 6,
-        "end": 16,
+        "line": 7,
+        "start": 10,
+        "end": 20,
         "file": "core/llm.py",
         "symbol": "create_llm"
       },
       {
-        "line": 13,
-        "start": 8,
-        "end": 25,
+        "line": 14,
+        "start": 12,
+        "end": 29,
         "file": "agents/plan_solve_agent.py",
         "symbol": "PlanAndSolveAgent.__init__"
       },
       {
-        "line": 18,
-        "start": 9,
-        "end": 18,
+        "line": 19,
+        "start": 13,
+        "end": 22,
         "file": "agents/plan_solve_agent.py",
         "symbol": "PlanAndSolveAgent.run"
+      },
+      {
+        "line": 24,
+        "start": 4,
+        "end": 8,
+        "file": "examples/plan_solve_agent_demo.py",
+        "symbol": "main"
       }
     ],
     "origin": "project"
   },
-  "test/test_advanced_search.py": {
-    "code": "# test_advanced_search.py\nfrom tools.advanced_search import create_advanced_search_registry, AdvancedSearchTool\nfrom dotenv import load_dotenv\n\n# 加载环境变量\nload_dotenv()\n\ndef test_advanced_search():\n    \"\"\"测试高级搜索工具\"\"\"\n\n    # 创建包含高级搜索工具的注册表\n    registry = create_advanced_search_registry()\n\n    print(\"🔍 测试高级搜索工具\\n\")\n\n    # 测试查询\n    test_queries = [\n        \"Python编程语言的历史\",\n        \"人工智能的最新发展\",\n        \"2024年科技趋势\"\n    ]\n\n    for i, query in enumerate(test_queries, 1):\n        print(f\"测试 {i}: {query}\")\n        result = registry.execute_tool(\"advanced_search\", query)\n        print(f\"结果: {result}\\n\")\n        print(\"-\" * 60 + \"\\n\")\n\ndef test_direct_search():\n    \"\"\"直接创建搜索实例并执行查询\"\"\"\n    print(\"🔍 直接搜索测试:\")\n\n    # 直接创建搜索工具实例\n    search_tool = AdvancedSearchTool()\n\n    # 如果没有配置API，会显示配置提示\n    result = search_tool.search(\"机器学习算法\")\n    print(f\"搜索结果: {result}\")\n\ndef test_tool_description():\n    \"\"\"查看已注册的工具描述，不创建Agent\"\"\"\n    print(\"\\n🔧 工具描述检查:\")\n\n    # 显示工具描述\n    registry = create_advanced_search_registry()\n    tools_desc = registry.get_tools_description()\n    print(f\"工具描述:\\n{tools_desc}\")\n\nif __name__ == \"__main__\":\n    test_advanced_search()\n    test_direct_search()\n    test_tool_description()\n",
+  "examples/search_demo.py": {
+    "code": "\"\"\"搜索工具运行演示，使用真实搜索服务。\"\"\"\nfrom tools.search_tool import create_search_registry, SearchTool\nfrom dotenv import load_dotenv\n\n\ndef demo_search():\n    \"\"\"通过注册表演示搜索工具\"\"\"\n\n    # 创建包含搜索工具的注册表\n    registry = create_search_registry()\n\n    print(\"🔍 搜索工具演示\\n\")\n\n    # 测试查询\n    test_queries = [\n        \"Python编程语言的历史\",\n        \"人工智能的最新发展\",\n        \"2024年科技趋势\"\n    ]\n\n    for i, query in enumerate(test_queries, 1):\n        print(f\"测试 {i}: {query}\")\n        result = registry.execute_tool(\"search\", query)\n        print(f\"结果: {result}\\n\")\n        print(\"-\" * 60 + \"\\n\")\n\ndef demo_direct_search():\n    \"\"\"直接创建搜索实例并执行查询\"\"\"\n    print(\"🔍 直接搜索测试:\")\n\n    # 直接创建搜索工具实例\n    search_tool = SearchTool()\n\n    # 如果没有配置API，会显示配置提示\n    result = search_tool.search(\"机器学习算法\")\n    print(f\"搜索结果: {result}\")\n\ndef demo_tool_description():\n    \"\"\"查看已注册的工具描述，不创建Agent\"\"\"\n    print(\"\\n🔧 工具描述检查:\")\n\n    # 显示工具描述\n    registry = create_search_registry()\n    tools_desc = registry.get_tools_description()\n    print(f\"工具描述:\\n{tools_desc}\")\n\nif __name__ == \"__main__\":\n    load_dotenv()\n    demo_search()\n    demo_direct_search()\n    demo_tool_description()\n",
     "symbols": {
-      "test_advanced_search": {
-        "start": 8,
-        "end": 27,
-        "doc": "测试高级搜索工具"
+      "demo_search": {
+        "start": 6,
+        "end": 25,
+        "doc": "通过注册表演示搜索工具"
       },
-      "test_direct_search": {
-        "start": 29,
-        "end": 38,
+      "demo_direct_search": {
+        "start": 27,
+        "end": 36,
         "doc": "直接创建搜索实例并执行查询"
       },
-      "test_tool_description": {
-        "start": 40,
-        "end": 47,
+      "demo_tool_description": {
+        "start": 38,
+        "end": 45,
         "doc": "查看已注册的工具描述，不创建Agent"
       }
     },
     "calls": [
       {
-        "line": 12,
+        "line": 10,
         "start": 15,
-        "end": 46,
-        "file": "tools/advanced_search.py",
-        "symbol": "create_advanced_search_registry"
+        "end": 37,
+        "file": "tools/search_tool.py",
+        "symbol": "create_search_registry"
       },
       {
-        "line": 25,
+        "line": 23,
         "start": 17,
         "end": 38,
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.execute_tool"
       },
       {
-        "line": 34,
+        "line": 32,
         "start": 18,
-        "end": 36,
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool.__init__"
+        "end": 28,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.__init__"
       },
       {
-        "line": 37,
+        "line": 35,
         "start": 13,
         "end": 31,
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool.search"
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.search"
       },
       {
-        "line": 45,
+        "line": 43,
         "start": 15,
-        "end": 46,
-        "file": "tools/advanced_search.py",
-        "symbol": "create_advanced_search_registry"
+        "end": 37,
+        "file": "tools/search_tool.py",
+        "symbol": "create_search_registry"
       },
       {
-        "line": 46,
+        "line": 44,
         "start": 17,
         "end": 47,
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.get_tools_description"
       },
       {
+        "line": 49,
+        "start": 4,
+        "end": 15,
+        "file": "examples/search_demo.py",
+        "symbol": "demo_search"
+      },
+      {
         "line": 50,
         "start": 4,
-        "end": 24,
-        "file": "test/test_advanced_search.py",
-        "symbol": "test_advanced_search"
+        "end": 22,
+        "file": "examples/search_demo.py",
+        "symbol": "demo_direct_search"
       },
       {
         "line": 51,
         "start": 4,
-        "end": 22,
-        "file": "test/test_advanced_search.py",
-        "symbol": "test_direct_search"
-      },
-      {
-        "line": 52,
-        "start": 4,
         "end": 25,
-        "file": "test/test_advanced_search.py",
-        "symbol": "test_tool_description"
+        "file": "examples/search_demo.py",
+        "symbol": "demo_tool_description"
       }
     ],
     "origin": "project"

@@ -82,7 +82,7 @@
         "match": "add_message"
       },
       {
-        "file": "test/test_simple_agent.py",
+        "file": "examples/simple_agent_demo.py",
         "symbol": "",
         "label": "真实 Agent 测试"
       }
@@ -170,10 +170,10 @@
     "description": "测试手动执行 calculate，再由本地 LLM.think 组织回答。",
     "sources": [
       {
-        "file": "test/test_calculator.py",
-        "symbol": "test_calculator_with_llm",
+        "file": "examples/calculator_demo.py",
+        "symbol": "demo_calculator_with_llm",
         "label": "测试编排",
-        "match": "测试函数"
+        "match": "示例函数"
       },
       {
         "file": "tools/calculator_tool.py",
@@ -357,7 +357,7 @@
         "match": "LLM.invoke"
       },
       {
-        "file": "test/test_react_agent.py",
+        "file": "tests/test_react_agent.py",
         "symbol": "test_calculator_result_reaches_next_model_request",
         "label": "离线计算器验证"
       }
@@ -433,27 +433,27 @@
   },
   {
     "id": "advanced-search",
-    "title": "高级搜索与回退",
+    "title": "搜索与后端回退",
     "kind": "流程图",
     "document": "docs/搜索工具与测试说明.md",
     "block": 0,
-    "description": "绑定方法注册为函数工具，按可用搜索源顺序尝试。",
+    "description": "注册 search 对象工具，按配置顺序尝试搜索源。",
     "sources": [
       {
-        "file": "tools/advanced_search.py",
-        "symbol": "create_advanced_search_registry",
+        "file": "tools/search_tool.py",
+        "symbol": "create_search_registry",
         "label": "创建搜索注册表",
-        "match": "创建高级搜索注册表"
+        "match": "创建搜索注册表"
       },
       {
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool._setup_search_sources",
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool._setup_backends",
         "label": "初始化搜索源",
         "match": "检查密钥"
       },
       {
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool.search",
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.search",
         "label": "search",
         "match": "按顺序尝试搜索源"
       },

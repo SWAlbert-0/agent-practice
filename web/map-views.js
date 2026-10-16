@@ -4,7 +4,7 @@ const definitions=[
   ['connection','模型连接','factory',['factory'],80,285,'服务选择、模型与凭证解析'],
   ['model','模型客户端','client',['client','invoke','request'],420,285,'本地 LLM、请求选项与流式响应'],
   ['runtime','Agent 执行','simple',['simple','react','plan','reflection','stream-run','tool-loop','tool-parse','tool-execute'],760,70,'对话、ReAct、规划、反思与工具循环'],
-  ['tools','工具系统','registry',['registry','calculator','calculate','eval-node','local-tool','advanced-search','search','chain','async-tools'],760,350,'本地注册、工具实现、顺序与并发编排'],
+  ['tools','工具系统','registry',['registry','calculator','calculate','eval-node','local-tool','search','chain','async-tools'],760,350,'本地注册、工具实现、顺序与并发编排'],
   ['foundation','基础组件','agent',['agent','message','config','dict','run','history'],420,530,'项目内的 Agent、消息与配置'],
 ];
 

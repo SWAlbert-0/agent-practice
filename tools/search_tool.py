@@ -1,98 +1,118 @@
-from tools.base import Tool
+"""网页搜索工具：优先使用 Tavily，可回退到 SerpApi。"""
+
 import os
 from typing import Optional
 
+from tools.base import Tool, ToolParameter
+from tools.registry import ToolRegistry
+
+
 class SearchTool(Tool):
-    """
-    智能混合搜索工具
+    """统一的搜索入口，支持 hybrid、tavily 和 serpapi 后端。"""
 
-    支持多种搜索引擎后端，智能选择最佳搜索源:
-    1. 混合模式 (hybrid) - 智能选择TAVILY或SERPAPI
-    2. Tavily API (tavily) - 专业AI搜索
-    3. SerpApi (serpapi) - 传统Google搜索
-    """
-
-    def __init__(self, backend: str = "hybrid", tavily_key: Optional[str] = None, serpapi_key: Optional[str] = None):
-        super().__init__(
-            name="search",
-            description="一个智能网页搜索引擎。支持混合搜索模式，自动选择最佳搜索源。"
-        )
+    def __init__(self, backend: str = "hybrid", tavily_key: Optional[str] = None,
+                 serpapi_key: Optional[str] = None):
+        super().__init__(name="search", description="搜索网页，返回标题、摘要和来源链接。")
+        if backend not in ("hybrid", "tavily", "serpapi"):
+            raise ValueError(f"不支持的搜索后端: {backend}")
         self.backend = backend
         self.tavily_key = tavily_key or os.getenv("TAVILY_API_KEY")
         self.serpapi_key = serpapi_key or os.getenv("SERPAPI_API_KEY")
         self.available_backends = []
         self._setup_backends()
 
-    def _search_hybrid(self, query: str) -> str:
-        """"混合搜索 - 智能选择最佳搜索源"""
-        # 优先使用 Tavily（AI优化的搜索）
-        if "tavily" in self.available_backends:
+    def _setup_backends(self):
+        """只初始化选用且已配置的 SDK，不在初始化时发起搜索。"""
+        if self.backend in ("hybrid", "tavily") and self.tavily_key:
             try:
-                return self._search_tavily(query)
-            except Exception as e:
-                print(f"⚠️ Tavily搜索失败: {e}")
-                # 如果Tavily失败，尝试SerpApi
-                if "serpapi" in self.available_backends:
-                    print("🔄 切换到SerpApi搜索")
-                    return self._search_serpapi(query)
+                from tavily import TavilyClient
+            except ImportError:
+                print("⚠️ 请安装 tavily-python 以使用 Tavily")
+            else:
+                self.tavily_client = TavilyClient(api_key=self.tavily_key)
+                self.available_backends.append("tavily")
 
-        # 如果Tavily不可用，使用SerpApi
-        elif "serpapi" in self.available_backends:
+        if self.backend in ("hybrid", "serpapi") and self.serpapi_key:
             try:
-                return self._search_serpapi(query)
-            except Exception as e:
-                print(f"⚠️ SerpApi搜索失败: {e}")
+                from serpapi import Client
+            except ImportError:
+                print("⚠️ 请安装 serpapi 以使用 SerpApi Client")
+            else:
+                self.serpapi_client = Client(api_key=self.serpapi_key)
+                self.available_backends.append("serpapi")
 
-        # 如果都不可用，提示用户配置API
-        return "❌ 没有可用的搜索源，请配置TAVILY_API_KEY或SERPAPI_API_KEY环境变量"
+    def run(self, parameters: dict) -> str:
+        """query 供 Agent 传入；input 供注册表的字符串入口传入。"""
+        query = parameters.get("query") or parameters.get("input", "")
+        return self.search(query)
+
+    def get_parameters(self) -> list[ToolParameter]:
+        return [ToolParameter(name="query", type="string", description="要搜索的关键词或问题")]
+
+    def search(self, query: str) -> str:
+        """按配置顺序尝试搜索源；空结果或请求失败时尝试下一源。"""
+        if not query.strip():
+            return "搜索查询不能为空"
+        if not self.available_backends:
+            return "没有可用的搜索源，请配置搜索密钥并安装对应 SDK"
+
+        errors = []
+        for backend in self.available_backends:
+            try:
+                result = (self._search_tavily(query) if backend == "tavily"
+                          else self._search_serpapi(query))
+                if result:
+                    return result
+            except Exception as error:
+                # 后端之间可以回退；日志不输出可能携带凭证的异常正文。
+                print(f"⚠️ {backend} 搜索失败（{type(error).__name__}）")
+                errors.append(backend)
+        if errors:
+            return "搜索未成功，请检查网络、搜索服务配置或更换查询"
+        return f"未找到关于 '{query}' 的搜索结果"
 
     def _search_tavily(self, query: str) -> str:
-        """"使用Tavily搜索"""
         response = self.tavily_client.search(
-            query = query,
-            search_depth = "basic",
-            include_answer = True,
-            max_results = 3
+            query=query, search_depth="basic", include_answer=True, max_results=3
         )
+        answer = response.get("answer")
+        items = response.get("results", [])[:3]
+        if not answer and not items:
+            return ""
 
-        result = f"🎯 Tavily AI搜索结果:{response.get('answer', '未找到直接答案')}\n\n"
-
-        for i, item in enumerate(response.get('results', [][:3], 1)):
+        result = "📊 Tavily 搜索结果:\n"
+        if answer:
+            result += f"直接答案: {answer}\n\n"
+        for i, item in enumerate(items, 1):
             result += f"[{i}] {item.get('title', '')}\n"
-            result += f"    {item.get('content', '')[:200]}...\n"
+            result += f"    {item.get('content', '')[:200]}\n"
             result += f"    来源: {item.get('url', '')}\n\n"
-
         return result
 
     def _search_serpapi(self, query: str) -> str:
-        """使用SerpApi搜索，返回直接答案及前三条网页结果"""
-        import serpapi
-
-        # 新版 SDK 使用 Client，密钥沿用构造函数读取的 SERPAPI_API_KEY。
-        client = serpapi.Client(api_key=self.serpapi_key)
-        response = client.search({
-            "engine": "google",
-            "q": query,
-            "gl": "cn",
-            "hl": "zh-cn"
+        response = self.serpapi_client.search({
+            "engine": "google", "q": query, "gl": "cn", "hl": "zh-cn"
         })
-
-        # answer_box 是搜索结果中的直接答案，可能只有摘要而没有 answer。
+        if response.get("error"):
+            raise RuntimeError("SerpApi 返回错误响应")
         answer_box = response.get("answer_box", {})
-        answer = answer_box.get("answer") or answer_box.get("snippet", "")
+        answer = answer_box.get("answer") or answer_box.get("snippet")
         items = response.get("organic_results", [])[:3]
-
         if not answer and not items:
-            return f"未找到关于 '{query}' 的搜索结果。"
+            return ""
 
-        result = "🔍 SerpApi Google搜索结果:\n\n"
+        result = "🌐 SerpApi 搜索结果:\n"
         if answer:
-            result += f"💡 直接答案: {answer}\n\n"
-
-        # SerpApi 的摘要、链接字段分别是 snippet、link，与 Tavily 不同。
+            result += f"直接答案: {answer}\n\n"
         for i, item in enumerate(items, 1):
             result += f"[{i}] {item.get('title', '')}\n"
-            result += f"    {item.get('snippet', '')[:200]}...\n"
+            result += f"    {item.get('snippet', '')[:200]}\n"
             result += f"    来源: {item.get('link', '')}\n\n"
-
         return result
+
+
+def create_search_registry(backend: str = "hybrid") -> ToolRegistry:
+    """创建注册了 search 对象工具的本地注册表。"""
+    registry = ToolRegistry()
+    registry.register_tool(SearchTool(backend=backend))
+    return registry

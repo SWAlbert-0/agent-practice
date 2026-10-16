@@ -4,9 +4,9 @@ export const files={simple:'agents/simple_agent.py',react:'agents/react_agent.py
 const node=(id,title,file,symbol,x,y,desc,status='ready')=>({id,title,file,symbol,x,y,desc,status,icon:'ƒ',points:[],links:[]});
 export const nodes=[
   node('main','main.py','main.py','',80,40,'入口 · 直接消费 LLM.think'),
-  node('agent-test','SimpleAgent 示例','test/test_simple_agent.py','',380,40,'本地 Agent、注册表与计算器'),
-  node('react-test','ReAct 离线测试','test/test_react_agent.py','test_calculator_result_reaches_next_model_request',680,40,'FakeLLM 验证行动、观察与最终答案'),
-  node('calculator-test','计算器编排示例','test/test_calculator.py','test_calculator_with_llm',980,40,'手动调用工具，再让模型回答'),
+  node('agent-test','SimpleAgent 示例','examples/simple_agent_demo.py','',380,40,'本地 Agent、注册表与计算器'),
+  node('react-test','ReAct 离线测试','tests/test_react_agent.py','test_calculator_result_reaches_next_model_request',680,40,'FakeLLM 验证行动、观察与最终答案'),
+  node('calculator-test','计算器编排示例','examples/calculator_demo.py','demo_calculator_with_llm',980,40,'手动调用工具，再让模型回答'),
   node('factory','create_llm()',files.llm,'create_llm',80,210,'读取同组连接配置，返回本地 LLM'),
   node('client','LLM.think()',files.llm,'LLM.think',380,210,'流式请求 · 打印并 yield 文本'),
   node('invoke','LLM.invoke()',files.llm,'LLM.invoke',680,210,'非流式调用 · 返回完整文本'),
@@ -25,8 +25,7 @@ export const nodes=[
   node('calculate','calculate()','tools/calculator_tool.py','calculate',680,760,'数学表达式 → AST → 结果文本','partial'),
   node('eval-node','_eval_node()','tools/calculator_tool.py','_eval_node',980,760,'递归计算常量、运算、调用与名称'),
   node('local-tool','Tool / ToolParameter','tools/base.py','Tool',1280,760,'本地工具接口与参数声明'),
-  node('advanced-search','高级搜索','tools/advanced_search.py','AdvancedSearchTool.search',80,950,'绑定方法注册为 advanced_search'),
-  node('search','SearchTool','tools/search_tool.py','SearchTool',380,950,'另一套搜索实现，接口尚不完整','partial'),
+  node('search','SearchTool','tools/search_tool.py','SearchTool.search',80,950,'统一对象工具，按顺序搜索与回退'),
   node('chain','ToolChain','tools/chain.py','ToolChain.execute',680,950,'顺序执行，模板传递前序结果'),
   node('async-tools','AsyncToolExecutor','tools/async_executor.py','AsyncToolExecutor.execute_tools_parallel',980,950,'线程池并发，按输入顺序返回'),
   node('message','Message','core/message.py','Message',80,1140,'Pydantic 消息与角色校验'),
@@ -49,7 +48,7 @@ export const relations=[
   ['react','invoke','逐步请求'],['react','registry','execute_tool'],['react','history','完成或超限时保存'],
   ['plan','client','Planner / Executor 消费 think'],['reflection','client','辅助方法消费 think'],
   ['registry','local-tool','对象表接口类型'],['calculator','local-tool','继承 Tool'],['calculator','calculate','run 调用'],['calculate','eval-node','递归求值'],
-  ['advanced-search','registry','工厂注册绑定方法'],['search','local-tool','抽象子类（未完成）'],
+  ['search','registry','工厂注册对象'],['search','local-tool','继承 Tool'],
   ['chain','registry','顺序 execute_tool'],['async-tools','registry','线程池 execute_tool'],
   ['agent','message','历史元素类型'],['agent','config','保存配置'],['agent','run','抽象入口'],['agent','history','历史方法'],['message','dict','格式转换'],
 ];
@@ -93,7 +92,7 @@ note(files.simple,'SimpleAgent._get_enhanced_system_prompt','在基础提示词�
 note(files.simple,'SimpleAgent._run_with_tool_calling','在本轮 messages 中反复请求、解析、执行并回传工具结果。','messages, input_text, max_tool_iterations, **kwargs','最终回答',['工具结果作为 user 消息，清理标记后的响应作为 assistant 消息。','达到上限后额外 invoke 一次，不再解析工具标记。','历史只保存原问题与最终回答。'],[
   step('循环请求','受工具轮数上限约束。','while current_iteration','response = self.llm.invoke'),step('解析与执行','逐项执行标记并清理原文。','tool_calls =','clean_response = clean_response.replace'),step('回传观察','追加上下文后增加轮数。','messages.append({"role" : "assistant"','current_iteration += 1'),step('超限与保存','必要时补充回答，最终保存问答。','if current_iteration >=','return final_response')]);
 note(files.simple,'SimpleAgent._parse_tool_calls','正则提取工具标记，返回名称、参数与原始标记。','text','list[dict]',['不支持参数中的任意右方括号嵌套。']);
-note(files.simple,'SimpleAgent._execute_tool_call','calculator 名称走注册表；其他名称解析参数后查对象并调用 run。','tool_name, parameters','结果或错误文本',['calculator 通过注册表执行对象工具，参数键为 input。','calculate 和 advanced_search 是函数注册名，get_tool 不查函数表；不能仅因已注册就假定 SimpleAgent 可调用。','本方法捕获工具异常并转成文本；注册表本身直接传播异常。'],[
+note(files.simple,'SimpleAgent._execute_tool_call','calculator 名称走注册表；其他名称解析参数后查对象并调用 run。','tool_name, parameters','结果或错误文本',['calculator 通过注册表执行对象工具，参数键为 input。','calculate 是函数注册名，get_tool 不查函数表；不能仅因已注册就假定 SimpleAgent 可调用。','本方法捕获工具异常并转成文本；注册表本身直接传播异常。'],[
   step('检查注册表','缺少注册表直接返回错误。','if not self.tool_registry:','return f'),step('特殊名称','只有字面名称 calculator 走统一调度。','if tool_name == "calculator":','result = self.tool_registry.execute_tool'),step('对象分支','解析后按名称取对象。','param_dict =','result = tool.run'),step('错误处理','工具异常转换为文字。','except Exception as e:','return f')]);
 note(files.simple,'SimpleAgent._parse_tool_parameters','把简单 key=value 或普通文本转换成字典。','tool_name, parameters','dict',['值仍是字符串，不做类型转换；逗号拆分不是完整语法解析。','search 用 query；memory 用 action 和 query；其他默认 input。']);
 note(files.simple,'SimpleAgent.stream_run','读取本地历史，转发模型片段，完整消费后保存问答。','input_text, **kwargs','Iterator[str]',['这条路径不执行工具循环。','提前停止或异常时，末尾保存历史可能不会执行。'],[step('读取历史','继承本地 Agent 方法。','for msg in self.get_history():'),step('流式转发','累积并 yield 片段。','for chunk in self.llm.stream_invoke','yield chunk'),step('保存完整问答','只有正常迭代结束才到这里。','self.add_message(Message(input_text','self.add_message(Message(full_response')]);
@@ -127,13 +126,13 @@ note('agents/plan_solve_agent.py','Executor.execute','为每个计划步骤组�
 note('agents/reflection_agent.py','ReflectionAgent.run','初始回答后反复评审和改进，返回最近 execution。','task','最终生成内容',['本类独立于 Agent，使用自己的 Memory；每次 run 重置。','只有 feedback.strip() 完全等于“无需改进”才停止。','execution 是模型输出记录，不表示执行了生成代码。']);
 note('agents/reflection_agent.py','ReflectionAgent._get_llm_response','消费 think 的片段并拼成完整字符串。','prompt','str');
 note('agents/reflection_agent.py','Memory','保存 execution / reflection 轨迹。','无','Memory',['get_last_execution 从后向前取最近执行结果；get_trajectory 当前主循环未调用。']);
-note('tools/advanced_search.py','AdvancedSearchTool.search','按可用搜索源顺序尝试，返回首个被判定成功的结果。','query','结果文本',['通过工厂作为绑定方法注册到函数表，不是 Tool 对象。','空查询、无后端或全部失败返回提示；网络请求只发生在 search。','SerpApi 分支仍使用 GoogleSearch，需与实际 SDK 版本匹配。']);
-note('tools/advanced_search.py','create_advanced_search_registry','把实例 search 方法注册为 advanced_search。','无','ToolRegistry',['注册的是绑定方法，不是立即执行搜索。','当前 SimpleAgent 的一般名称走对象表，ReAct 统一调度可以走函数表。']);
-note('tools/search_tool.py','SearchTool','另一套搜索实现，目前未完成 Tool 要求的接口。','backend, 可选凭证','尚不能正常实例化',[],[], '缺少 run、get_parameters 和 _setup_backends；不是 AdvancedSearchTool 的父类，也不能由同名方法推断已接通。');
+note('tools/search_tool.py','SearchTool.search','按配置顺序尝试搜索源，返回首个非空结果。','query','结果文本',['空查询和无后端返回提示；请求失败或空结果时尝试下一源。','Tavily 与 SerpApi 结果均保留标题、摘要与来源链接。','当前没有跨源融合或自动时间筛选。']);
+note('tools/search_tool.py','create_search_registry','创建 SearchTool 并注册为 search 对象工具。','backend','ToolRegistry',['注册时不发起搜索。','注册表通过 input 传入查询；SimpleAgent 通过 query 传入查询。']);
+note('tools/search_tool.py','SearchTool','统一搜索实现，继承本地 Tool。','backend, 可选凭证','SearchTool',['run 和 get_parameters 实现工具接口。','初始化只加载已配置且被选用的 SDK；SerpApi 使用 Client 接口。']);
 note('tools/chain.py','ToolChain.execute','按既定步骤填充模板、调用工具并把结果写入 context。','registry, initial_input, context?','最后一步结果',['Agent 当前未自动接入此模块。','缺少模板变量时返回错误；工具错误文本不会自动中断，异常直接传播。','空步骤会在取最后一步时报错，研究示例也未自动把搜索摘要转换为算式。']);
 note('tools/chain.py','ToolChainManager.execute_chain','按名称找到工具链，使用管理器持有的注册表执行。','chain_name, input_data, context?','工具链结果或未找到文本');
 note('tools/async_executor.py','AsyncToolExecutor.execute_tools_parallel','为每项输入创建协程，再用 gather 调度并等待结果。','tasks','按输入顺序排列的 list[str]',['同步工具实际在线程池中执行，不阻塞事件循环。','工具异常默认传播；错误字符串不等于异常。','当前 Agent 没有自动调用此执行器。']);
 note('tools/async_executor.py','AsyncToolExecutor.execute_tool_async','把 registry.execute_tool 放入线程池执行。','tool_name, input_data','await 得到的工具结果');
-note('test/test_calculator.py','test_calculator_with_llm','手动执行计算器，再调用 LLM.think 组织自然语言回答。','预设问题与表达式','终端回答',['由测试函数编排工具与模型，没有实例化 Agent。','think 内部打印，测试再次 print(chunk) 会重复输出。']);
-note('test/test_simple_agent.py','','实际创建本地 SimpleAgent、注册表与 CalculatorTool。','create_llm 创建的客户端','终端响应与历史',['此文件在模块顶层发起真实模型请求，索引生成只解析源码，不导入它。']);
-note('test/test_react_agent.py','test_calculator_result_reaches_next_model_request','使用 FakeLLM 和本地计算器，验证 Observation 进入下一轮提示词。','预设两轮模型文本','离线断言',['不调用真实模型或搜索服务。']);
+note('examples/calculator_demo.py','demo_calculator_with_llm','手动执行计算器，再调用 LLM.think 组织自然语言回答。','预设问题与表达式','终端回答',['由示例函数编排工具与模型，没有实例化 Agent。','think 内部打印，示例再次 print(chunk) 会重复输出。']);
+note('examples/simple_agent_demo.py','','实际创建本地 SimpleAgent、注册表与 CalculatorTool。','create_llm 创建的客户端','终端响应与历史',['main 仅在直接运行模块时执行；导入不会请求模型。']);
+note('tests/test_react_agent.py','test_calculator_result_reaches_next_model_request','使用 FakeLLM 和本地计算器，验证 Observation 进入下一轮提示词。','预设两轮模型文本','离线断言',['不调用真实模型或搜索服务。']);

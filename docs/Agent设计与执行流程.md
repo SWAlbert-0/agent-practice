@@ -52,7 +52,7 @@ result = agent.run("解释什么是生成器")
 
 当前工具名为 `calculator` 时走注册表执行方法；其他名称走 `get_tool()` 后调用 `tool.run()`。本地注册表支持对象与函数，但这里的一般名称只查询对象表。
 
-新增高级搜索工厂把 `AdvancedSearchTool.search()` 注册到本地函数表，注册名是 `advanced_search`。当前 SimpleAgent 对这类名称仍走对象工具的 `get_tool()` 路径，`get_tool()` 只查询对象表，所以高级搜索测试通过不代表它已接入 SimpleAgent。搜索测试的 `test_tool_description()` 实际只展示工具描述。
+搜索工厂 `create_search_registry()` 把 SearchTool 注册为本地对象工具，名称为 `search`。SimpleAgent 通过 `get_tool()` 获取对象并传入 query；ReActAgent 通过注册表包装 input。搜索工具适配两种入口，已有 SimpleAgent 离线调用链测试。搜索示例的 `demo_tool_description()` 只展示描述。
 
 `_parse_tool_parameters()` 对 `search` 生成 `query` 键，对其他一般工具生成 `input` 键，也支持简单的 `key=value` 拆分。接入对象工具时需核对其真正接受的字段，不能仅凭名称相同判断可用。
 
@@ -142,9 +142,9 @@ result = agent.run("解释什么是生成器")
 从项目根目录运行对应示例：
 
 ```powershell
-python -X utf8 -m test.test_simple_agent
-python -X utf8 -m test.test_reflection_agent
-python -X utf8 -m test.test_plan_solve_agent
+python -X utf8 -m examples.simple_agent_demo
+python -X utf8 -m examples.reflection_agent_demo
+python -X utf8 -m examples.plan_solve_agent_demo
 ```
 
 这些是包含真实模型请求的功能示例。判断工具是否工作，应检查实际工具结果；模型即使在工具失败后自行计算出答案，也不能说明工具分支通过。

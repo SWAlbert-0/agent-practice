@@ -84,7 +84,7 @@
         "match": "add_message"
       },
       {
-        "file": "test/test_simple_agent.py",
+        "file": "examples/simple_agent_demo.py",
         "symbol": "",
         "label": "真实 Agent 测试"
       }
@@ -175,10 +175,10 @@
     "description": "测试手动执行 calculate，再由本地 LLM.think 组织回答。",
     "sources": [
       {
-        "file": "test/test_calculator.py",
-        "symbol": "test_calculator_with_llm",
+        "file": "examples/calculator_demo.py",
+        "symbol": "demo_calculator_with_llm",
         "label": "测试编排",
-        "match": "测试函数"
+        "match": "示例函数"
       },
       {
         "file": "tools/calculator_tool.py",
@@ -205,7 +205,7 @@
       }
     ],
     "block": 1,
-    "code": "sequenceDiagram\n    autonumber\n    actor User as 用户\n    participant Test as 测试函数（模拟 Agent 编排）\n    participant LLM as LLM\n    participant Registry as ToolRegistry\n    participant Calc as 计算器 calculate\n    participant API as 模型服务 API\n\n    Note over Test,API: 准备：create_llm() 创建客户端；create_calculator_registry() 注册 calculate → calculate\n    Note over User,Test: 测试代码预设问题，模拟用户输入\n    User->>Test: 请帮我计算 sqrt(16) + 2 * 3\n\n    rect rgb(255, 248, 235)\n        Note over Test,Calc: 第一阶段：执行计算器工具\n        Test->>Registry: execute_tool(\"calculate\", \"sqrt(16) + 2 * 3\")\n        Registry->>Registry: 对象表未命中，从 _functions 取出 func\n        Registry->>Calc: calculate(\"sqrt(16) + 2 * 3\")\n        Calc->>Calc: ast.parse(expression, mode=\"eval\") 解析表达式\n        Calc->>Calc: _eval_node() 递归计算：4.0 + 6\n        Calc-->>Registry: 返回字符串 \"10.0\"\n        Registry-->>Test: 返回 calc_result = \"10.0\"\n    end\n\n    rect rgb(237, 246, 255)\n        Note over Test,API: 第二阶段：生成自然语言回答\n        Test->>Test: 构建 final_messages，包含原问题和计算结果\n        Test->>LLM: response = llm.think(final_messages)\n        LLM-->>Test: 返回生成器，此时尚未发送请求\n        Test->>LLM: for chunk in response：开始迭代\n        LLM->>API: chat.completions.create(messages=..., stream=True)\n        loop 逐块返回，直到响应结束\n            API-->>LLM: 返回响应片段\n            LLM-->>Test: yield chunk（文本片段）\n            Test->>Test: print(chunk, end=\"\", flush=True)\n        end\n    end\n\n    Note over Test,User: 终端展示模型回答，下面仅为示例措辞\n    Test-->>User: sqrt(16) = 4，2 × 3 = 6，所以结果是 10。"
+    "code": "sequenceDiagram\n    autonumber\n    actor User as 用户\n    participant Test as 示例函数（模拟 Agent 编排）\n    participant LLM as LLM\n    participant Registry as ToolRegistry\n    participant Calc as 计算器 calculate\n    participant API as 模型服务 API\n\n    Note over Test,API: 准备：create_llm() 创建客户端；create_calculator_registry() 注册 calculate → calculate\n    Note over User,Test: 示例代码预设问题，模拟用户输入\n    User->>Test: 请帮我计算 sqrt(16) + 2 * 3\n\n    rect rgb(255, 248, 235)\n        Note over Test,Calc: 第一阶段：执行计算器工具\n        Test->>Registry: execute_tool(\"calculate\", \"sqrt(16) + 2 * 3\")\n        Registry->>Registry: 对象表未命中，从 _functions 取出 func\n        Registry->>Calc: calculate(\"sqrt(16) + 2 * 3\")\n        Calc->>Calc: ast.parse(expression, mode=\"eval\") 解析表达式\n        Calc->>Calc: _eval_node() 递归计算：4.0 + 6\n        Calc-->>Registry: 返回字符串 \"10.0\"\n        Registry-->>Test: 返回 calc_result = \"10.0\"\n    end\n\n    rect rgb(237, 246, 255)\n        Note over Test,API: 第二阶段：生成自然语言回答\n        Test->>Test: 构建 final_messages，包含原问题和计算结果\n        Test->>LLM: response = llm.think(final_messages)\n        LLM-->>Test: 返回生成器，此时尚未发送请求\n        Test->>LLM: for chunk in response：开始迭代\n        LLM->>API: chat.completions.create(messages=..., stream=True)\n        loop 逐块返回，直到响应结束\n            API-->>LLM: 返回响应片段\n            LLM-->>Test: yield chunk（文本片段）\n            Test->>Test: print(chunk, end=\"\", flush=True)\n        end\n    end\n\n    Note over Test,User: 终端展示模型回答，下面仅为示例措辞\n    Test-->>User: sqrt(16) = 4，2 × 3 = 6，所以结果是 10。"
   },
   {
     "id": "evaluate",
@@ -366,7 +366,7 @@
         "match": "LLM.invoke"
       },
       {
-        "file": "test/test_react_agent.py",
+        "file": "tests/test_react_agent.py",
         "symbol": "test_calculator_result_reaches_next_model_request",
         "label": "离线计算器验证"
       }
@@ -445,27 +445,27 @@
   },
   {
     "id": "advanced-search",
-    "title": "高级搜索与回退",
+    "title": "搜索与后端回退",
     "kind": "流程图",
     "document": "docs/搜索工具与测试说明.md",
     "block": 0,
-    "description": "绑定方法注册为函数工具，按可用搜索源顺序尝试。",
+    "description": "注册 search 对象工具，按配置顺序尝试搜索源。",
     "sources": [
       {
-        "file": "tools/advanced_search.py",
-        "symbol": "create_advanced_search_registry",
+        "file": "tools/search_tool.py",
+        "symbol": "create_search_registry",
         "label": "创建搜索注册表",
-        "match": "创建高级搜索注册表"
+        "match": "创建搜索注册表"
       },
       {
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool._setup_search_sources",
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool._setup_backends",
         "label": "初始化搜索源",
         "match": "检查密钥"
       },
       {
-        "file": "tools/advanced_search.py",
-        "symbol": "AdvancedSearchTool.search",
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool.search",
         "label": "search",
         "match": "按顺序尝试搜索源"
       },
@@ -476,7 +476,7 @@
         "match": "execute_tool"
       }
     ],
-    "code": "flowchart TD\n    A[测试加载环境变量] --> B[创建高级搜索注册表]\n    B --> C[创建 AdvancedSearchTool]\n    C --> D[检查密钥和 SDK / 建立可用搜索源列表]\n    D --> E[注册 advanced_search 对应的 search 方法]\n    E --> F[execute_tool 接收查询字符串]\n    F --> G{查询为空或无可用搜索源?}\n    G -->|是| H[返回输入错误或配置提示]\n    G -->|否| I[按顺序尝试搜索源]\n    I --> J[请求并格式化结果]\n    J --> K{结果非空且不含 未找到?}\n    K -->|是| L[返回当前结果]\n    K -->|否| M[尝试下一搜索源]\n    J -.发生异常.-> M\n    M --> N{还有搜索源?}\n    N -->|有| I\n    N -->|无| O[返回所有搜索源失败]"
+    "code": "flowchart TD\n    A[示例加载环境变量] --> B[创建搜索注册表]\n    B --> C[创建 SearchTool]\n    C --> D[检查密钥与选定后端的 SDK]\n    D --> E[注册 search 对象工具]\n    E --> F[execute_tool 接收查询字符串]\n    F --> G[run 从 input 或 query 读取查询]\n    G --> H{查询非空且有可用源?}\n    H -->|否| I[返回提示]\n    H -->|是| J[按顺序尝试搜索源]\n    J --> K{有答案或网页结果?}\n    K -->|有| L[返回标题、摘要与来源链接]\n    K -->|无| M{还有搜索源?}\n    J -.请求异常.-> M\n    M -->|有| J\n    M -->|无| N[返回无结果或失败提示]"
   },
   {
     "id": "chain",

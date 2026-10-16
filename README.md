@@ -19,8 +19,8 @@
 | 本地工具注册表 | 已实现主要接口 | 支持对象与函数执行、查询、列举及移除；schema 方法待完善 |
 | 计算器工具 | 已实现基础能力 | AST 解析、加减乘除、`sqrt` 与 `pi`；正负号等表达式分支待完善 |
 | Agent 架构与流程演示 | 已实现 | 节点拖动、画布平移缩放、源码弹窗、调用跳转、信息流模拟与流程图视图 |
-| 搜索与编排 | 部分实现 | 高级搜索、顺序工具链与线程池并发执行；部分搜索接口和接入流程待完善 |
-| 测试 | 已有离线测试与运行示例 | 客户端、ReAct、注册表与计算器已有离线断言；功能示例可调用真实服务 |
+| 搜索与编排 | 部分实现 | 统一搜索工具支持 Tavily / SerpApi 与回退；顺序工具链及线程池并发执行仍需完善接入 |
+| 测试 | 已有离线测试与运行示例 | 客户端、ReAct、注册表、计算器与搜索已有离线断言；功能示例单独放在 examples |
 | 预留模块 | 占位 | `tools/builtin/` 下的工具文件与 `core/exceptions.py` 尚未实现 |
 
 ## 架构图
@@ -29,7 +29,7 @@
 
 ```mermaid
 flowchart TB
-    Entry[运行入口：main.py / test]
+    Entry[运行入口：main.py / examples]
     Agents[Agent：对话 · ReAct · 反思 · 规划执行]
     LLM[模型接入：core/llm.py]
     Tools[工具模块：注册表 · 计算器 · 搜索]
@@ -44,7 +44,7 @@ flowchart TB
     LLM --> Services
 ```
 
-`main.py` 直接调用模型，Agent 示例位于 `test/`。Agent 架构与流程演示用于查看源码与演示流程，不参与实际推理。
+`main.py` 直接调用模型，Agent 示例位于 `examples/`。Agent 架构与流程演示用于查看源码与演示流程，不参与实际推理。
 
 ## 功能模块
 
@@ -58,18 +58,24 @@ flowchart TB
 | `tools/base.py` | Tool 抽象类与 ToolParameter 参数定义 |
 | `tools/registry.py` | 本地工具注册、描述与函数执行入口 |
 | `tools/calculator_tool.py` | 字符串数学表达式计算及计算器注册函数 |
-| `test/` | 各功能的运行示例与测试入口，部分会请求真实模型 |
+| `tools/search_tool.py` | 统一搜索对象工具，支持 Tavily、SerpApi 及后端回退 |
+| `examples/` | 功能演示，直接运行时可请求真实模型或搜索服务，导入不执行请求 |
+| `tests/` | 带断言的离线测试，默认无需真实密钥和网络服务 |
 | `web/` | 无需 npm 的本地前端，提供 Agent 架构与流程演示、真实源码阅读 |
 | `docs/` | 开发说明、源码分析和 Mermaid 流程图 |
 
 ## 本地运行
 
-使用 Python 3.11，在项目根目录安装业务依赖。模型调用通过 OpenAI SDK 连接兼容接口，仓库暂未提供完整依赖锁定文件。
+先安装 Miniconda 或 Anaconda，然后在项目根目录创建并激活 Python 3.11 环境：
 
 ```powershell
-python -m pip install openai python-dotenv pydantic
-Copy-Item .env.example .env
+conda create -n agents python=3.11 -y
+conda activate agents
+python -m pip install -r requirements.txt
+cp .env.example .env
 ```
+
+`requirements.txt` 固定直接与间接依赖版本，包含模型客户端、搜索 SDK 和离线测试工具。已有 `agents` 环境时只需激活；已有 `.env` 时跳过复制。以后打开新终端，先执行 `conda activate agents`。使用 VS Code 时，在 **Python: Select Interpreter** 中选择该环境。
 
 在 `.env` 中填写需要使用的服务商密钥，然后确认 `models.json` 中的 `defaultProvider` 和对应的 `defaultModel`。真实 `.env` 已加入 Git 忽略规则，模板只保留变量名称。
 
@@ -78,22 +84,21 @@ Copy-Item .env.example .env
 python -X utf8 main.py
 
 # 分别运行功能示例
-python -X utf8 -m test.test_simple_agent
-python -X utf8 -m test.test_reflection_agent
-python -X utf8 -m test.test_plan_solve_agent
-python -X utf8 -m test.test_calculator
+python -X utf8 -m examples.simple_agent_demo
+python -X utf8 -m examples.reflection_agent_demo
+python -X utf8 -m examples.plan_solve_agent_demo
+python -X utf8 -m examples.calculator_demo
 ```
 
-这些入口会访问所配置的模型服务。当前测试文件以功能演示为主，正常输出与退出不等同于所有分支已验证。
+这些示例入口会访问所配置的模型服务。搜索示例使用 `python -X utf8 -m examples.search_demo`。演示正常输出与退出不等同于所有分支已验证。
 
 离线测试无需真实密钥或模型服务：
 
 ```powershell
-python -m pip install pytest
-python -X utf8 -m pytest test/test_llm.py test/test_react_agent.py test/test_tool_registry.py test/test_calculator_tool.py -q
+python -X utf8 -m pytest tests -q
 ```
 
-搜索功能另外使用 `tavily-python` 或 `serpapi` 等 SDK，需按所选后端配置对应密钥。
+搜索 SDK 已包含在依赖文件中。使用搜索功能时，在 `.env` 中按需添加 `TAVILY_API_KEY` 或 `SERPAPI_API_KEY`；不使用搜索时无需配置。
 
 代码中也可以显式选择服务商与模型：
 
