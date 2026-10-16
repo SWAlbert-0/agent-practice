@@ -1,7 +1,7 @@
 import {extraNodes,extraRelations,flowExamples} from './knowledge.js';
 import {SourceReader} from './reader.js';
 import {createMapViews} from './map-views.js';
-import {DiagramViewer} from './diagrams.js';
+import {DiagramViewer} from './diagrams.js?v=canvas-20261016-2';
 
 // 解释、位置与关联由人工维护；源码与行号由 generate_sources.py 自动更新。
 const nodes = [

@@ -8,7 +8,7 @@
 .diagram-panel button{border:1px solid #dde3eb;background:#fff;color:#4d6079;padding:8px 12px;border-radius:9px;font:inherit;font-size:14px;cursor:pointer}
 .diagram-panel button:hover{background:#edf3fa;border-color:#b9c9dc}
 #diagram-description{font-size:16px;line-height:1.7;color:#657187;margin:16px 0}
-#diagram-viewport{height:clamp(450px,65vh,900px);overflow:hidden;position:relative;background:radial-gradient(#dfe5ed .8px,transparent .8px) 0 0 / 22px 22px #fafbfd;border:1px solid #e5e9ef;border-radius:14px;touch-action:none}
+#diagram-viewport{height:calc(80dvh + 320px);min-height:800px;overflow:hidden;position:relative;background:radial-gradient(#dfe5ed .8px,transparent .8px) 0 0 / 22px 22px #fafbfd;border:1px solid #e5e9ef;border-radius:14px;touch-action:none}
 #diagram-stage{position:absolute;left:0;top:0;transform-origin:0 0;color:#6d7d92;font-size:16px}
 #diagram-stage svg{display:block;overflow:visible}
 .diagram-hint{position:absolute;left:14px;bottom:12px;background:#fafbfdec;color:#7b8798;font-size:12px;padding:5px 8px;border-radius:6px;pointer-events:none}

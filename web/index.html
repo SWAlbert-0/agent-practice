@@ -8,8 +8,8 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="disclosure.css">
   <link rel="stylesheet" href="reader.css">
-  <link rel="stylesheet" href="theme.css">
-  <link rel="stylesheet" href="diagrams.css">
+  <link rel="stylesheet" href="theme.css?v=canvas-20261016-2">
+  <link rel="stylesheet" href="diagrams.css?v=canvas-20261016-3">
 </head>
 <body>
   <main>
@@ -35,6 +35,6 @@
     <div class="dialog-hint">左侧步骤定位源码 · 右侧下划线调用进入实现 <span>Esc 关闭</span></div>
   </dialog>
   <dialog id="guide-dialog"><button class="dialog-close" aria-label="关闭指南">×</button><h2>使用指南</h2><ol><li>点击节点打开详情弹窗，左侧功能讲解与右侧真实源码并排展示；点击左侧步骤定位并高亮代码。</li><li>左键拖动节点，可越过原点向任意方向移动，连线自动跟随，连接关系不变；“重置布局”恢复初始位置。也可聚焦节点，按 Alt + 方向键移动。</li><li>地图默认 100%，可手动缩放、适应画布，点击倍率恢复 100%。按住右键或滚轮中键可向任意方向拖动整张地图；滚动滚轮也可平移，Shift + 滚轮横移。</li><li>点击源码下划线调用进入真实实现；顶部调用链可跳转到任意上层，左箭头逐层返回。支持函数选择、复制和自动换行。</li><li>点击“信息流演示”选择 main.py、Agent 普通对话或工具循环；Agent 路径仅为方法级模拟，未接入当前 main.py。</li><li>按 Esc、点击关闭按钮或窗口外部可关闭弹窗。</li></ol><p>只展示当前开发内容，不包含研发阶段或未来规划。需要更新时，按你的要求同步图谱和源码。</p><p>页面不访问 .env、不运行 Python 代码，也不发起模型请求。</p></dialog>
-  <script src="app.js" type="module"></script>
+  <script src="app.js?v=canvas-20261016-2" type="module"></script>
 </body>
 </html>

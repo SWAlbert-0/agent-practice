@@ -26,7 +26,7 @@ main { max-width:1920px;padding-left:28px;padding-right:28px; }
 .detail-switch[data-level="full"]::before { transform:translateX(100%); }
 .detail-switch button { font-size:13px;padding:7px 13px;color:#7e8998;border-radius:7px;transition:color .2s; }
 .detail-switch button[aria-pressed="true"] { color:#a95725;font-weight:550; }
-.canvas { background-color:#fafbfc;background-image:radial-gradient(#ced5df99 .8px,transparent .8px);height:calc(100dvh - 159px); }
+.canvas { background-color:#fafbfc;background-image:radial-gradient(#ced5df99 .8px,transparent .8px);height:calc(100dvh + 80px); }
 .canvas-label { top:18px;left:20px;background:#ffffffed;color:#7b8796;font-size:11px;border:1px solid #e4e8ee;border-radius:6px;padding:6px 9px; }
 .live-dot { background:#85a18c; }
 .graph-node { border-color:#e0e5ec;border-radius:14px;background:#fff;box-shadow:0 2px 4px #1e293b05,0 5px 20px #1e293b04;padding:16px;transition:box-shadow .22s var(--ease),border-color .2s,background .2s; }
@@ -107,5 +107,5 @@ button:focus-visible,select:focus-visible,a:focus-visible,[tabindex]:focus-visib
 @keyframes reader-appear { from { opacity:0;transform:translateY(10px) scale(.985); }to {opacity:1;transform:none;} }
 @keyframes map-appear { from { opacity:.25; }to { opacity:1; } }
 @media(max-width:900px) { .panel-toolbar { gap:12px; }.map-actions { margin-left:auto; }.legend #map-caption { display:none; } }
-@media(max-width:640px) { main { padding-left:12px;padding-right:12px; }.map-header { height:64px; }.map-panel { border-radius:13px; }.panel-toolbar { padding:12px; }.map-actions { gap:8px; }.detail-switch button { padding:7px 10px;font-size:12px; }.view-tabs button { font-size:13px; }.canvas { height:calc(100dvh - 202px); }.reader-tools button { font-size:12px; } }
+@media(max-width:640px) { main { padding-left:12px;padding-right:12px; }.map-header { height:64px; }.map-panel { border-radius:13px; }.panel-toolbar { padding:12px; }.map-actions { gap:8px; }.detail-switch button { padding:7px 10px;font-size:12px; }.view-tabs button { font-size:13px; }.canvas { height:calc(100dvh - 42px); }.reader-tools button { font-size:12px; } }
 @media(prefers-reduced-motion:reduce) { *,*::before,*::after { animation:none!important;transition:none!important;scroll-behavior:auto!important; } }

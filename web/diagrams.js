@@ -78,6 +78,14 @@ export class DiagramViewer {
     v.addEventListener('pointerdown',e=>{if(!this.state||![1,2].includes(e.button))return;e.preventDefault();drag={id:e.pointerId,x:e.clientX,y:e.clientY};v.setPointerCapture(e.pointerId);v.classList.add('panning');});
     v.addEventListener('pointermove',e=>{if(!drag||drag.id!==e.pointerId)return;this.state.x+=e.clientX-drag.x;this.state.y+=e.clientY-drag.y;drag.x=e.clientX;drag.y=e.clientY;this.apply();});
     const stop=()=>{drag=null;v.classList.remove('panning');};v.addEventListener('pointerup',stop);v.addEventListener('pointercancel',stop);v.addEventListener('lostpointercapture',stop);
-    v.addEventListener('wheel',e=>{if(!this.state)return;e.preventDefault();const unit=e.deltaMode===1?16:e.deltaMode===2?v.clientHeight:1;if(e.ctrlKey){const r=v.getBoundingClientRect();this.zoom(this.state.zoom*Math.exp(-e.deltaY*unit*.002),e.clientX-r.left,e.clientY-r.top);}else{this.state.x-=(e.deltaX+(e.shiftKey?e.deltaY:0))*unit;this.state.y-=(e.shiftKey?0:e.deltaY)*unit;this.apply();}},{passive:false});
+    // 普通滚轮交给页面：可以滚过顶部工具区，让加高的画布占满视野。
+    // 只有 Ctrl + 滚轮缩放时才拦截默认滚动，平移仍使用右键 / 中键拖动。
+    v.addEventListener('wheel',e=>{
+      if(!e.ctrlKey||!this.state)return;
+      e.preventDefault();
+      const unit=e.deltaMode===1?16:e.deltaMode===2?v.clientHeight:1;
+      const r=v.getBoundingClientRect();
+      this.zoom(this.state.zoom*Math.exp(-e.deltaY*unit*.002),e.clientX-r.left,e.clientY-r.top);
+    },{passive:false});
   }
 }
