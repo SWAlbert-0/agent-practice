@@ -34,7 +34,6 @@ flowchart TB
     Tools[工具模块：注册表 · 计算器]
     Config[配置：models.json / .env]
     Services[模型服务：DeepSeek / ModelScope / Ollama]
-    Web[研发地图：源码查看 · 流程演示]
 
     Entry --> Agents
     Entry -->|直接调用| LLM
@@ -42,7 +41,6 @@ flowchart TB
     Agents -->|按需调用| Tools
     Config --> LLM
     LLM --> Services
-    Web -.->|展示与讲解| Agents
 ```
 
 `main.py` 直接调用模型，Agent 示例位于 `test/`。研发地图用于查看源码与演示流程，不参与实际推理。
@@ -98,7 +96,7 @@ llm = create_llm(provider="ollama", model="qwen3.5:4b")
 
 使用 Ollama 前，需要本地服务已启动且指定模型已安装。
 
-## 交互式研发地图
+## Agent 架构与流程演示
 
 ```powershell
 python web/serve.py
