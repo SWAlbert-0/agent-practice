@@ -1,6 +1,6 @@
-# Agent Explorer
+# Agent 架构与流程演示
 
-本地交互式 Agent 研发地图。采用原生 HTML/CSS/JavaScript，无需安装 npm 依赖，不依赖在线 CDN。不修改 Python 业务代码，不连接模型服务。
+本地交互式 Agent 架构与流程演示。采用原生 HTML/CSS/JavaScript，无需安装 npm 依赖，不依赖在线 CDN。不修改 Python 业务代码，不连接模型服务。
 
 ## 启动
 
