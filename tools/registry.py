@@ -2,7 +2,7 @@ from tools.base import Tool
 from typing import Any, Callable, Dict
 
 class ToolRegistry:
-    """HelloAgents工具注册表"""
+    """工具注册表，统一管理对象工具和函数工具"""
 
     def __init__(self):
         self._tools: dict[str, Tool] = {}
@@ -16,13 +16,33 @@ class ToolRegistry:
         print(f"✅ 工具 '{tool.name}' 已注册。")
 
     def execute_tool(self, name: str, parameters: str) -> str:
-        """根据名称执行已注册的函数工具"""
-        if name not in self._functions:
-            return f"工具不存在: {name}"
+        """根据名称执行工具；对象工具优先，函数工具接收原始字符串"""
+        if name in self._tools:
+            # 统一字符串入口使用 input 键；多参数工具可通过 get_tool() 后自行传入字典。
+            return self._tools[name].run({"input": parameters})
 
-        # 注册时保存了函数对象，这里取出并传入参数执行。
-        func = self._functions[name]["func"]
-        return func(parameters)
+        if name in self._functions:
+            # 注册时保存了函数对象，这里取出并传入参数执行。
+            func = self._functions[name]["func"]
+            return func(parameters)
+
+        return f"工具不存在: {name}"
+
+    def get_tool(self, name: str) -> Tool | None:
+        """按名称获取Tool对象；函数工具不在对象表中"""
+        return self._tools.get(name)
+
+    def list_tools(self) -> list[str]:
+        """列出对象工具与函数工具的名称，同名只显示一次"""
+        return list(dict.fromkeys([*self._tools, *self._functions]))
+
+    def unregister_tool(self, name: str) -> bool:
+        """移除指定名称的工具，返回是否找到并移除了注册项"""
+        found = name in self._tools or name in self._functions
+        # 两张表都清理，避免同名对象被移除后又调用到旧的函数。
+        self._tools.pop(name, None)
+        self._functions.pop(name, None)
+        return found
         
     def register_function(self, name: str, description: str, func: Callable[[str], str]):
         """

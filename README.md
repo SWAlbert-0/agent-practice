@@ -1,8 +1,8 @@
 # agent-practice
 
-基于 Hello Agents 教程与 `hello-agents` 框架的 Agent 学习实践项目，逐步实现模型接入、对话、工具调用、反思和规划执行，并提供 Agent 架构与流程演示，展示代码与调用关系。
+参考 Hello Agents 教程的 Agent 实践项目，自行实现模型接入、对话、工具调用、反思和规划执行，并提供 Agent 架构与流程演示，展示代码与调用关系。
 
-项目正在持续完善。部分组件复用已安装框架，部分为本地实现；当前进度按源码实现情况记录，不代表所有分支均已通过自动化测试。
+项目正在持续完善，业务组件均在本地实现，不依赖教程配套框架。当前进度按源码实现情况记录，不代表所有分支均已通过自动化测试。
 
 ## 开发进度
 
@@ -11,16 +11,17 @@
 | 模块 | 当前进度 | 已有能力与后续完善点 |
 |---|---|---|
 | 模型接入 | 已实现 | `create_llm()` 按配置选择服务商和模型，密钥从环境变量读取 |
-| 基础组件 | 已实现基础定义 | 本地 `Agent`、`Message`、`Config`；与框架同名类的使用尚未统一 |
+| 基础组件 | 已实现基础定义 | 本地 `Agent`、`Message`、`Config`，为Agent提供统一接口与消息结构 |
 | SimpleAgent | 已实现主要流程 | 普通对话、历史消息、流式响应、提示词工具循环；继续完善工具管理边界 |
-| ReActAgent | 已编写，待完善验证 | Thought / Action / Observation 循环与结束判断；需核对父类初始化参数映射 |
+| ReActAgent | 已实现主要流程 | 继承本地Agent，实现行动解析、工具调度和结束判断，已有离线测试 |
 | ReflectionAgent | 已实现主要流程 | 初次回答、反思、改进、短期轨迹、自定义模板与停止判断 |
 | PlanAndSolveAgent | 已实现主要流程 | 先生成计划，再逐步执行，流式片段收集为完整文本 |
-| 本地工具注册表 | 部分实现 | 可注册 Tool 对象与函数；当前 `execute_tool()` 只执行函数工具，schema 方法待完善 |
+| 本地工具注册表 | 已实现主要接口 | 支持对象与函数执行、查询、列举及移除；schema 方法待完善 |
 | 计算器工具 | 已实现基础能力 | AST 解析、加减乘除、`sqrt` 与 `pi`；正负号等表达式分支待完善 |
 | Agent 架构与流程演示 | 已实现 | 节点拖动、画布平移缩放、源码弹窗、调用跳转、信息流模拟与流程图视图 |
-| 测试示例 | 已有运行入口 | 对话、反思、规划执行、计算器示例；自动化断言覆盖待补充 |
-| 其他工具 | 占位 | `tools/chain.py`、`tools/async_executor.py` 和 `tools/builtin/` 下的工具文件尚未实现 |
+| 搜索与编排 | 部分实现 | 高级搜索、顺序工具链与线程池并发执行；部分搜索接口和接入流程待完善 |
+| 测试 | 已有离线测试与运行示例 | 客户端、ReAct、注册表与计算器已有离线断言；功能示例可调用真实服务 |
+| 预留模块 | 占位 | `tools/builtin/` 下的工具文件与 `core/exceptions.py` 尚未实现 |
 
 ## 架构图
 
@@ -49,7 +50,7 @@ flowchart TB
 
 | 目录或文件 | 说明 |
 |---|---|
-| `core/llm.py` | 模型客户端工厂，显式传入 provider、model、base_url、api_key |
+| `core/llm.py` | 本地LLM客户端与配置工厂，提供普通调用和流式响应 |
 | `models.json` | 服务商地址、默认模型和可选模型记录，当前默认服务商为 DeepSeek |
 | `core/agent.py` | 本地 Agent 抽象接口与消息历史管理 |
 | `core/message.py`、`core/config.py` | 消息结构、角色类型与运行配置 |
@@ -63,10 +64,10 @@ flowchart TB
 
 ## 本地运行
 
-使用 Python 3.11，在项目根目录执行以下命令。现有开发环境使用 `hello-agents` 0.1.1；仓库暂未提供完整依赖锁定文件。
+使用 Python 3.11，在项目根目录安装业务依赖。模型调用通过 OpenAI SDK 连接兼容接口，仓库暂未提供完整依赖锁定文件。
 
 ```powershell
-python -m pip install hello-agents==0.1.1 python-dotenv pydantic
+python -m pip install openai python-dotenv pydantic
 Copy-Item .env.example .env
 ```
 
@@ -84,6 +85,15 @@ python -X utf8 -m test.test_calculator
 ```
 
 这些入口会访问所配置的模型服务。当前测试文件以功能演示为主，正常输出与退出不等同于所有分支已验证。
+
+离线测试无需真实密钥或模型服务：
+
+```powershell
+python -m pip install pytest
+python -X utf8 -m pytest test/test_llm.py test/test_react_agent.py test/test_tool_registry.py test/test_calculator_tool.py -q
+```
+
+搜索功能另外使用 `tavily-python` 或 `serpapi` 等 SDK，需按所选后端配置对应密钥。
 
 代码中也可以显式选择服务商与模型：
 

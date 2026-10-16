@@ -1,6 +1,9 @@
 import ast       # 把字符串表达式解析成语法树，保留括号和运算优先级。
 import operator  # 提供加减乘除等函数，方便按语法树中的运算符查找并调用。
 import math      # 提供 sqrt、pi 等数学函数和常量。
+from typing import Any, Dict, List
+
+from tools.base import Tool, ToolParameter
 from tools.registry import ToolRegistry
 
 def calculate(expression: str) -> str:
@@ -58,13 +61,40 @@ def _eval_node(node, operators, functions):
         if node.id in functions:
             return functions[node.id]
 
+class CalculatorTool(Tool):
+    """将计算函数封装为Tool对象，供Agent和注册表调用"""
+
+    def __init__(self):
+        super().__init__(
+            name="calculator",
+            description="执行数学计算，支持加减乘除、括号、sqrt函数和pi常量。例如：2+3*4、sqrt(16)。"
+        )
+
+    def run(self, parameters: Dict[str, Any]) -> str:
+        """读取表达式并交给现有calculate函数求值"""
+        # input 是工具的标准参数；expression 兼容原计算器的调用方式。
+        expression = parameters.get("input", "") or parameters.get("expression", "")
+        return calculate(expression)
+
+    def get_parameters(self) -> List[ToolParameter]:
+        """描述工具输入，参数名与run读取的input一致"""
+        return [
+            ToolParameter(
+                name="input",
+                type="string",
+                description="数学表达式，例如 15 * 8 + 32 或 sqrt(16)",
+                required=True
+            )
+        ]
+
+
 def create_calculator_registry():
     """创建包含计算器的工具注册表"""
     registry = ToolRegistry()
 
     # 注册计算器函数
     registry.register_function(
-        name="my_calculator",
+        name="calculate",
         description="简单的数学计算工具，支持基本运算(+,-,*,/)和sqrt函数",
         func=calculate
     )

@@ -1,38 +1,10 @@
-import {extraNodes,extraRelations,flowExamples} from './knowledge.js';
-import {SourceReader} from './reader.js';
-import {createMapViews} from './map-views.js';
-import {DiagramViewer} from './diagrams.js?v=canvas-20261016-2';
+import {nodes,relations,flowExamples} from './knowledge.js?v=local-architecture-2';
+import {SourceReader} from './reader.js?v=local-architecture-2';
+import {createMapViews} from './map-views.js?v=local-architecture-1';
+import {DiagramViewer} from './diagrams.js?v=local-architecture-1';
 
-// 解释、位置与关联由人工维护；源码与行号由 generate_sources.py 自动更新。
-const nodes = [
-  {id:'main',title:'main.py',icon:'↗',file:'main.py',x:360,y:45,status:'ready',desc:'当前程序的入口',summary:'这是当前真实运行路径的起点：创建模型客户端，构造一条用户消息，再消费 think() 返回的生成器。当前入口没有实例化 Agent。',points:['create_llm() 按服务配置创建客户端。','for 循环才会驱动 think()，开始实际请求。','模型回答在 think() 内部打印，外层不必重复打印。'],input:'用户消息文本',output:'终端流式回答',links:[['factory','调用'],['client','调用']]},
-  {id:'factory',title:'create_llm()',icon:'ƒ',file:'core/llm.py',symbol:'create_llm',x:70,y:210,status:'ready',desc:'一组选定配置，一个客户端',summary:'配置工厂把服务选择和模型调用分开。先选定 provider，再从该组读取模型、地址和密钥，避免自动检测混用多套配置。',points:['显式参数优先于 models.json 中的默认选择。','只读取当前服务；缺失配置项按 Python 原有规则报错。','全部连接参数显式传入基础客户端。'],input:'provider? · model? · config_path?',output:'HelloAgentsLLM 实例',links:[['main','被调用'],['client','创建']]},
-  {id:'client',title:'HelloAgentsLLM',icon:'◉',file:'hello_agents/core/llm.py',symbol:'HelloAgentsLLM.think',x:650,y:210,status:'ready',desc:'连接模型，逐段返回文本',summary:'安装包中的模型客户端统一调用兼容接口。当前查看的是 think()：发送流式请求，提取增量文本，然后打印并 yield 给调用方。',points:['创建生成器不发送请求，消费生成器时才开始。','base_url 决定请求目标，provider 影响配置解析。','模型部署与推理由 Ollama 等服务负责。'],input:'list[dict] 消息列表',output:'Iterator[str] 文本片段',links:[['factory','被创建'],['main','返回片段'],['dict','接收格式']]},
-  {id:'agent',title:'Agent',icon:'◇',file:'core/agent.py',symbol:'Agent.__init__',x:360,y:355,status:'partial',desc:'组合组件，保存公共状态',summary:'Agent 是抽象基类，保存名称、模型客户端、系统提示词、配置和历史。它提供骨架，并没有自动完成一轮对话。',points:['llm 从外部传入，不在 Agent 内自动创建。','未传 config 时使用 Config()，不读取环境变量。','每个实例拥有独立的 _history 列表。'],input:'name · llm · system_prompt? · config?',output:'子类实例的公共状态',links:[['run','定义接口'],['history','管理'],['config','持有'],['message','保存类型'],['client','持有']]},
-  {id:'message',title:'Message',icon:'✉',file:'core/message.py',symbol:'Message',x:70,y:355,status:'ready',desc:'结构化消息与角色校验',summary:'一条内部消息包含内容、角色、时间和元数据。Pydantic 依据 role: MessageRole 校验角色，Literal 限定了四种合法值。',points:['角色允许 user、assistant、system、tool。','kwargs 接收 timestamp 和 metadata 等关键字参数。','目前 tool 消息尚未封装完整的工具调用关联字段。'],input:'content · role · kwargs',output:'Message 对象',links:[['dict','转换'],['history','被保存'],['agent','被持有']]},
-  {id:'config',title:'Config',icon:'⚙',file:'core/config.py',symbol:'Config',x:650,y:355,status:'partial',desc:'运行配置已定义，待应用',summary:'Config 集中保存温度、日志、历史长度等设置。字段存在并不代表行为已经接通：Agent 基类不会自动按这些值执行。',points:['Config() 使用默认值；from_env() 才读取部分环境变量。','from_env() 本身不会加载 .env。','max_history_length 目前没有自动截断逻辑。'],input:'显式参数 / 部分环境变量',output:'Config 对象',links:[['agent','被持有']]},
-  {id:'dict',title:'Message.to_dict()',icon:'{}',file:'core/message.py',symbol:'Message.to_dict',x:70,y:515,status:'ready',desc:'内部对象 → 接口消息',summary:'把丰富的内部 Message 对象转换为只有 content 和 role 的字典，便于构造模型调用的 messages 参数。当前 main.py 直接创建字典，尚未调用该方法。',points:['时间与元数据不进入此方法的返回值。','to_dict() 与返回全部字段的 model_dump() 不同。'],input:'Message 实例',output:'{"content": "…", "role": "user"}',links:[['message','所属类'],['client','兼容输入']]},
-  {id:'run',title:'Agent.run()',icon:'▶',file:'core/agent.py',symbol:'Agent.run',x:360,y:515,status:'partial',desc:'已声明的抽象执行接口',summary:'@abstractmethod 要求子类实现执行策略。当前只有接口和 pass，不能把 Agent 直接实例化，也没有实际的对话闭环。',points:['input_text 接收用户文本，kwargs 留给子类扩展。','Agent 基类没有组织消息或调用模型的实现。','项目 SimpleAgent 已实现，但继承框架父类，并非这个项目基类。'],input:'input_text · kwargs',output:'约定返回 str，当前未实现',links:[['agent','所属类']]},
-  {id:'history',title:'历史消息管理',icon:'≡',file:'core/agent.py',symbol:'Agent.get_history',x:650,y:515,status:'ready',desc:'添加、复制和清空消息',summary:'基类提供 add_message()、get_history()、clear_history()。这些方法已经存在，但仍需子类在运行过程中主动使用。',points:['get_history() 返回列表浅拷贝，列表内 Message 对象仍共享。','不会自动保存模型回答，也不自动限制历史长度。'],input:'Message / 读取或清空操作',output:'list[Message] 的浅拷贝',links:[['agent','所属类'],['message','元素类型']]},
-];
-
-nodes.push(...extraNodes);
-const relations = [
-  ['main','factory','调用'],['main','client','调用 think'],
-  ['factory','client','创建客户端'],['agent','client','持有客户端'],
-  ['agent','message','消息类型'],['agent','config','持有配置'],
-  ['agent','run','抽象接口'],['agent','history','历史方法'],['message','dict','转换'],
-];
-relations.push(...extraRelations);
 const mapViews=createMapViews(nodes,relations),byId=mapViews.byId;
-const currentFlow = [
-  {node:'main',title:'01 / 进入 main.py',text:'入口首先调用配置工厂。当前程序没有创建 Agent，也没有执行抽象 run()。',data:'llm = create_llm()'},
-  {node:'factory',title:'02 / 选择整组连接配置',text:'根据 defaultProvider 选择同一组地址、模型和密钥；不展示或读取凭证内容。',data:'provider → baseUrl + defaultModel + key source'},
-  {node:'client',title:'03 / 创建客户端',text:'HelloAgentsLLM 接收显式参数。这个步骤尚未发起模型请求。',data:'client = HelloAgentsLLM(provider=…, model=…, …)'},
-  {node:'main',title:'04 / 构造消息并驱动生成器',text:'创建消息字典后，think(messages) 返回生成器；for 循环消费时才实际执行请求。',data:'messages = [{"role":"user","content":"你好"}] → for chunk in llm.think(messages)'},
-  {node:'client',title:'05 / 模拟请求与响应',text:'模型服务返回增量文本；此处只使用教学数据，不实际发送 HTTP 请求。',data:'delta.content = "你好！" → yield content'},
-  {node:'main',title:'06 / 输出完成',text:'文本在 think() 内打印，外层 pass 只负责继续迭代。当前模型调用路径结束。',data:'output: "你好！很高兴见到你。"'},
-];
+const currentFlow=flowExamples.main;
 const initialPositions=Object.fromEntries(Object.values(byId).map(n=>[n.id,{x:n.x,y:n.y}]));
 let sources = {}, selected='simple', mode='structure', stepIndex=-1, playing=false, timer, zoom=1,detailLevel='compact';
 const savedViews={};

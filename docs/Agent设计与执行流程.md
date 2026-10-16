@@ -1,6 +1,6 @@
 # Agent 设计与执行流程
 
-核对日期：2026-10-16。本文依据 `agents/` 当前实现，描述职责、调用过程与已有边界，不代表全部路径都经过真实模型测试。
+核对日期：2026-10-17。本文依据 `agents/` 当前实现，描述职责、调用过程与已有边界，不代表全部路径都经过真实模型测试。
 
 ## 1. 客户端与 Agent 的关系
 
@@ -17,7 +17,7 @@ result = agent.run("解释什么是生成器")
 
 | Agent | 主要职责 | 调用方式 | 状态保存 |
 |---|---|---|---|
-| SimpleAgent | 普通对话与可选工具循环 | `invoke()` / `stream_invoke()` | 框架消息历史 |
+| SimpleAgent | 普通对话与可选工具循环 | `invoke()` / `stream_invoke()` | 本地 Agent 消息历史 |
 | ReActAgent | 推理、行动、观察交替进行 | `invoke()` | 当前任务轨迹，完成时保存问答 |
 | ReflectionAgent | 初次回答后反思与改进 | 消费 `think()` 并拼接 | 本地 Memory，运行时重置 |
 | PlanAndSolveAgent | 先规划，再按步骤求解 | 消费 `think()` 并拼接 | Executor 内的步骤结果字符串 |
@@ -26,7 +26,7 @@ result = agent.run("解释什么是生成器")
 
 ## 2. SimpleAgent
 
-文件：`agents/simple_agent.py`。继承框架的 SimpleAgent，消息、配置和注册表也从框架导入。
+文件：`agents/simple_agent.py`。直接继承本地 `core.agent.Agent`，消息、配置、客户端与注册表全部来自本地模块。
 
 ### 普通对话
 
@@ -46,11 +46,15 @@ result = agent.run("解释什么是生成器")
 | `_run_with_tool_calling()` | 驱动模型与工具之间的迭代 |
 | `_parse_tool_calls()` | 从模型文本中提取工具名称与参数 |
 | `_execute_tool_call()` | 选择执行路径，工具异常转为错误文本 |
-| `_parse_tool_parameters()` | 继承的参数解析方法，为对象工具整理字典参数 |
+| `_parse_tool_parameters()` | 本地类定义的参数解析方法，为对象工具整理字典参数 |
 
 这是提示词约束的文本协议，未使用原生 `tool_calls` 字段。工具结果作为用户消息追加，最终保存的历史只包含原问题与最终回答，不包含完整工具轨迹。
 
-当前工具名为 `calculator` 时走注册表执行方法；其他名称走 `get_tool()` 后调用 `tool.run()`。因此不能直接假定本地函数注册表可以替代示例使用的框架注册表。
+当前工具名为 `calculator` 时走注册表执行方法；其他名称走 `get_tool()` 后调用 `tool.run()`。本地注册表支持对象与函数，但这里的一般名称只查询对象表。
+
+新增高级搜索工厂把 `AdvancedSearchTool.search()` 注册到本地函数表，注册名是 `advanced_search`。当前 SimpleAgent 对这类名称仍走对象工具的 `get_tool()` 路径，`get_tool()` 只查询对象表，所以高级搜索测试通过不代表它已接入 SimpleAgent。搜索测试的 `test_tool_description()` 实际只展示工具描述。
+
+`_parse_tool_parameters()` 对 `search` 生成 `query` 键，对其他一般工具生成 `input` 键，也支持简单的 `key=value` 拆分。接入对象工具时需核对其真正接受的字段，不能仅凭名称相同判断可用。
 
 ### 流式对话
 
@@ -59,12 +63,14 @@ result = agent.run("解释什么是生成器")
 ### 当前边界
 
 - 迭代上限后的最后一次模型回答不会再次解析工具标记。
-- `remove_tool()` 调用的 `unregister_tool()` 与当前框架提供的方法名不一致。
+- `remove_tool()` 已对接本地 `unregister_tool()`，但有注册表时固定返回 True，不转发注册表的 found 值。
 - 已有注册表但禁用工具时，`add_tool()` 不一定重新启用工具调用；`has_tools()` 只检查开关和注册表存在，不统计实际工具数。
 
 ## 3. ReActAgent
 
-文件：`agents/react_agent.py`。继承框架 ReActAgent，使用自定义提示词和循环。
+文件：`agents/react_agent.py`。直接继承本地 `core.agent.Agent`，使用本地提示词、解析方法与循环。
+
+构造时优先使用非空 `custom_prompt`，否则使用 `DEFAULT_REACT_PROMPT`。默认模板提供 `{tools}`、`{question}`、`{history}` 占位符；模板在初始化时选定，不会在每次 `run()` 时重新选择。
 
 ```text
 工具说明 + 问题 + 已有轨迹
@@ -74,15 +80,15 @@ result = agent.run("解释什么是生成器")
   → 达到 max_steps：返回无法完成的提示
 ```
 
-`current_history` 在每次 `run()` 开始时清空，保存本轮行动与观察。输出解析方法复用框架；工具通过传入注册表的 `execute_tool()` 调用。
+`current_history` 在每次 `run()` 开始时清空，保存本轮行动与观察。输出由本类的 `_parse_output()`、`_parse_action()` 和 `_parse_action_input()` 解析；工具通过传入注册表的 `execute_tool()` 调用。
 
-当前 `super().__init__(name, llm, system_prompt, config)` 使用位置参数，而框架 ReActAgent 的第三个参数是 `tool_registry`。虽然随后重新赋值了部分属性，父类参数仍可能错位；这是待修正与验证的代码边界，本次文档整理不修改实现。
+`super().__init__(name, llm, system_prompt, config)` 与本地 Agent 的参数顺序一致；注册表由 ReActAgent 自己保存。工具执行异常直接传播，缺少 Action 则继续消耗步数。
 
 自定义 `run()` 用模板构建用户消息，没有把 `system_prompt` 单独加入请求；历史列表也没有把所有 Thought 文本完整保存下来。
 
 ## 4. ReflectionAgent
 
-文件：`agents/reflection_agent.py`。独立的本地类，不继承框架 ReflectionAgent。
+文件：`agents/reflection_agent.py`。独立的本地类，不继承 Agent。
 
 ```text
 初次执行 → 保存 execution
@@ -142,5 +148,11 @@ python -X utf8 -m test.test_plan_solve_agent
 ```
 
 这些是包含真实模型请求的功能示例。判断工具是否工作，应检查实际工具结果；模型即使在工具失败后自行计算出答案，也不能说明工具分支通过。
+
+## 7. 与新增工具编排的关系
+
+`ToolChain` 和 `AsyncToolExecutor` 都通过注册表执行工具，但当前四种 Agent 没有导入或调用这两个模块。PlanAndSolveAgent 的 Executor 是模型逐步解题，也不等于线程池执行器或工具链。
+
+工具链适合固定顺序与步骤结果传递，异步执行器适合独立任务并发。它们不会自动从模型输出生成步骤、自动调用模型总结，或把工具错误转换成可靠答案。具体关联与接入缺口见 [工具链与异步执行说明](工具链与异步执行说明.md)；搜索实现与验证范围见 [搜索工具与测试说明](搜索工具与测试说明.md)。
 
 更细的图示见 [核心代码流程](flows/核心代码流程.md)。返回 [文档导航](文档导航.md)。

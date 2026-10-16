@@ -2,7 +2,7 @@
 from abc import ABC, abstractmethod
 from typing import Optional, Any
 from .message import Message
-from .llm import HelloAgentsLLM
+from .llm import LLM
 from .config import Config
 
 # 通过继承 ABC 被定义为一个不能直接实例化的抽象类
@@ -13,7 +13,7 @@ class Agent(ABC):
     def __init__(
         self,
         name: str,
-        llm: HelloAgentsLLM,
+        llm: LLM,
         system_prompt: Optional[str] = None,
         config: Optional[Config] = None
     ):

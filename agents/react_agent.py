@@ -1,9 +1,13 @@
-# my_react_agent.py
+# react_agent.py
 import re
 from typing import Optional, List, Tuple
-from hello_agents import ReActAgent, HelloAgentsLLM, Config, Message, ToolRegistry
+from core.agent import Agent
+from core.config import Config
+from core.llm import LLM
+from core.message import Message
+from tools.registry import ToolRegistry
 
-MY_REACT_PROMPT = """你是一个具备推理和行动能力的AI助手。你可以通过思考分析问题，然后调用合适的工具来获取信息，最终给出准确的答案。
+DEFAULT_REACT_PROMPT = """你是一个具备推理和行动能力的AI助手。你可以通过思考分析问题，然后调用合适的工具来获取信息，最终给出准确的答案。
 
 ## 可用工具
 {tools}
@@ -32,18 +36,18 @@ Action: 选择一个行动，格式必须是以下之一:
 """
 
 
-class ReActAgent(ReActAgent):
+class ReActAgent(Agent):
     """
-    重写的ReAct Agent - 推理与行动结合的智能体
+    本地ReAct Agent - 推理与行动结合的智能体
     """
 
     def __init__(
         self,
         name: str,                              #Agent的名称
-        llm: HelloAgentsLLM,                    # HelloAgents的实例，负责与大模型通信
+        llm: LLM,                               # 本地LLM客户端实例，负责与大模型通信
         tool_registry: ToolRegistry,            # ToolRegistry的实例，用于管理和执行Agent可用的工具
         system_prompt: Optional[str] = None,    # 系统提示词
-        config: Optional[Config] = None,        # 配置对象，用于传递框架级的设置
+        config: Optional[Config] = None,        # 本地Agent配置对象
         max_steps: int = 5,                     # ReAct循环的最大执行步数
         custom_prompt: Optional[str] = None     # 自定义的提示词模板，用于替换默认的ReAct提示词。
     ):
@@ -51,7 +55,7 @@ class ReActAgent(ReActAgent):
         self.tool_registry = tool_registry
         self.max_steps = max_steps
         self.current_history: List[str] = []
-        self.prompt_template = custom_prompt if custom_prompt else MY_REACT_PROMPT
+        self.prompt_template = custom_prompt if custom_prompt else DEFAULT_REACT_PROMPT
         print(f"✅ {name} 初始化完成，最大步数: {max_steps}")
 
     def run(self, input_text: str, **kwargs) -> str:
@@ -100,3 +104,25 @@ class ReActAgent(ReActAgent):
         self.add_message(Message(input_text, "user"))
         self.add_message(Message(final_answer, "assistant"))
         return final_answer
+
+    def _parse_output(self, text: str) -> Tuple[Optional[str], Optional[str]]:
+        """从模型文本中分别提取Thought和Action所在行"""
+        thought_match = re.search(r"Thought: (.*)", text)
+        action_match = re.search(r"Action: (.*)", text)
+
+        thought = thought_match.group(1).strip() if thought_match else None
+        action = action_match.group(1).strip() if action_match else None
+        return thought, action
+
+    def _parse_action(self, action_text: str) -> Tuple[Optional[str], Optional[str]]:
+        """把工具名[输入]拆成名称和输入，无法匹配时返回两个None"""
+        match = re.match(r"(\w+)\[(.*)\]", action_text)
+        if match:
+            return match.group(1), match.group(2)
+        return None, None
+
+    def _parse_action_input(self, action_text: str) -> str:
+        """提取方括号内的内容，用于读取Finish[最终答案]"""
+        # 复用行动解析，保证工具输入和最终答案使用同一种括号格式。
+        _, action_input = self._parse_action(action_text)
+        return action_input if action_input is not None else ""

@@ -1,10 +1,10 @@
 // 每个完整节点只属于一个组件组；简化边由真实关系汇总，不额外推断调用。
 const definitions=[
-  ['entry','程序入口','main',['main','agent-test','calculator-test'],80,70,'当前 main.py 的执行起点'],
+  ['entry','程序入口','main',['main','agent-test','react-test','calculator-test'],80,70,'模型入口、Agent 示例与离线验证'],
   ['connection','模型连接','factory',['factory'],80,285,'服务选择、模型与凭证解析'],
-  ['model','模型客户端','client',['client','invoke'],420,285,'流式与非流式请求'],
-  ['runtime','Agent 执行','simple',['simple','sdk-agent','stream-run'],760,70,'对话入口、父类与流式方法'],
-  ['tools','工具系统','tool-loop',['tool-loop','tool-parse','tool-execute','registry','local-registry','calculator','eval-node','local-tool'],760,350,'工具循环、解析、执行与注册'],
+  ['model','模型客户端','client',['client','invoke','request'],420,285,'本地 LLM、请求选项与流式响应'],
+  ['runtime','Agent 执行','simple',['simple','react','plan','reflection','stream-run','tool-loop','tool-parse','tool-execute'],760,70,'对话、ReAct、规划、反思与工具循环'],
+  ['tools','工具系统','registry',['registry','calculator','calculate','eval-node','local-tool','advanced-search','search','chain','async-tools'],760,350,'本地注册、工具实现、顺序与并发编排'],
   ['foundation','基础组件','agent',['agent','message','config','dict','run','history'],420,530,'项目内的 Agent、消息与配置'],
 ];
 

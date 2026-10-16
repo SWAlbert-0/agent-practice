@@ -5,7 +5,7 @@
     "kind": "流程图",
     "document": "docs/flows/核心代码流程.md",
     "block": 0,
-    "description": "从服务配置到 HelloAgentsLLM；显式解析地址、模型和凭证。",
+    "description": "从服务配置创建本地 LLM；显式解析地址、模型与凭证来源。",
     "sources": [
       {
         "file": "core/llm.py",
@@ -14,13 +14,13 @@
         "match": "create_llm"
       },
       {
-        "file": "hello_agents/core/llm.py",
-        "symbol": "HelloAgentsLLM.__init__",
+        "file": "core/llm.py",
+        "symbol": "LLM.__init__",
         "label": "客户端初始化",
-        "match": "HelloAgentsLLM"
+        "match": "LLM"
       }
     ],
-    "code": "flowchart TD\n    A[create_llm] --> B[load_dotenv 加载项目环境变量]\n    B --> C[读取并解析 models.json 或指定配置文件]\n    C --> D[参数 provider 或 defaultProvider]\n    D --> E[取 providers 中对应的服务配置]\n    E --> F[参数 model 或 defaultModel]\n    F --> G[读取同一配置的 baseUrl]\n    G --> H{配置 apiKeyEnv?}\n    H -->|是| I[从环境变量取 API Key]\n    H -->|否| J[读取配置中的 apiKey]\n    I --> K{密钥非空?}\n    J --> K\n    K -->|否| L[抛出 ValueError]\n    K -->|是| M[显式传入 provider / model / base_url / api_key]\n    M --> N[返回 HelloAgentsLLM 实例]"
+    "code": "flowchart TD\n    A[create_llm] --> B[load_dotenv 加载项目环境变量]\n    B --> C[读取并解析 models.json 或指定配置文件]\n    C --> D[参数 provider 或 defaultProvider]\n    D --> E[取 providers 中对应的服务配置]\n    E --> F[参数 model 或 defaultModel]\n    F --> G[读取同一配置的 baseUrl]\n    G --> H{配置 apiKeyEnv?}\n    H -->|是| I[从环境变量取 API Key]\n    H -->|否| J[读取配置中的 apiKey]\n    I --> K{密钥非空?}\n    J --> K\n    K -->|否| L[抛出 ValueError]\n    K -->|是| M[显式传入 provider / model / base_url / api_key]\n    M --> N[返回本地 LLM 实例]"
   },
   {
     "id": "main",
@@ -43,13 +43,13 @@
         "match": "create_llm"
       },
       {
-        "file": "hello_agents/core/llm.py",
-        "symbol": "HelloAgentsLLM.think",
+        "file": "core/llm.py",
+        "symbol": "LLM.think",
         "label": "think",
-        "match": "HelloAgentsLLM"
+        "match": "LLM"
       }
     ],
-    "code": "sequenceDiagram\n    autonumber\n    participant Main as main.py\n    participant Factory as create_llm\n    participant LLM as HelloAgentsLLM\n    participant API as 配置的模型服务\n    Main->>Factory: create_llm()\n    Factory-->>Main: 模型客户端\n    Main->>LLM: think(messages)\n    LLM-->>Main: 返回生成器\n    Main->>LLM: for chunk 开始迭代\n    LLM->>API: 发送一次流式请求\n    loop 接收响应片段\n        API-->>LLM: 响应片段\n        LLM-->>Main: yield 文本片段\n    end\n    Note over LLM,API: 请求目标由 base_url 决定，模型由 model 决定"
+    "code": "sequenceDiagram\n    autonumber\n    participant Main as main.py\n    participant Factory as create_llm\n    participant LLM as 本地 LLM\n    participant API as 配置的模型服务\n    Main->>Factory: create_llm()\n    Factory-->>Main: 模型客户端\n    Main->>LLM: think(messages)\n    LLM-->>Main: 返回生成器\n    Main->>LLM: for chunk 开始迭代\n    LLM->>API: 发送一次流式请求\n    loop 接收响应片段\n        API-->>LLM: 响应片段\n        LLM-->>Main: yield 文本片段\n    end\n    Note over LLM,API: 请求目标由 base_url 决定，模型由 model 决定"
   },
   {
     "id": "simple",
@@ -57,7 +57,7 @@
     "kind": "时序图",
     "document": "docs/flows/核心代码流程.md",
     "block": 2,
-    "description": "无工具分支：组织上下文、invoke、保存历史。",
+    "description": "本地 SimpleAgent：上下文、invoke 与 core.agent.Agent 历史方法。",
     "sources": [
       {
         "file": "agents/simple_agent.py",
@@ -66,19 +66,19 @@
         "match": "自定义 SimpleAgent"
       },
       {
-        "file": "hello_agents/core/agent.py",
+        "file": "core/agent.py",
         "symbol": "Agent.get_history",
         "label": "get_history",
         "match": "get_history()"
       },
       {
-        "file": "hello_agents/core/llm.py",
-        "symbol": "HelloAgentsLLM.invoke",
+        "file": "core/llm.py",
+        "symbol": "LLM.invoke",
         "label": "invoke",
         "match": "invoke(messages)"
       },
       {
-        "file": "hello_agents/core/agent.py",
+        "file": "core/agent.py",
         "symbol": "Agent.add_message",
         "label": "add_message",
         "match": "add_message"
@@ -89,7 +89,7 @@
         "label": "真实 Agent 测试"
       }
     ],
-    "code": "sequenceDiagram\n    autonumber\n    participant Caller as 调用方\n    participant Agent as 自定义 SimpleAgent\n    participant History as 框架 Agent 历史\n    participant LLM as HelloAgentsLLM\n    participant API as 模型服务\n    Caller->>Agent: run(input_text)\n    Agent->>History: get_history()\n    History-->>Agent: 历史列表的浅拷贝\n    Agent->>Agent: system + history + user\n    Note over Agent,LLM: 未启用工具的分支\n    Agent->>LLM: invoke(messages)\n    LLM->>API: 非流式模型请求\n    API-->>LLM: 完整响应\n    LLM-->>Agent: response 字符串\n    Agent->>History: add_message(user)\n    Agent->>History: add_message(assistant)\n    Agent-->>Caller: return response"
+    "code": "sequenceDiagram\n    autonumber\n    participant Caller as 调用方\n    participant Agent as 自定义 SimpleAgent\n    participant History as 本地 Agent 历史\n    participant LLM as 本地 LLM\n    participant API as 模型服务\n    Caller->>Agent: run(input_text)\n    Agent->>History: get_history()\n    History-->>Agent: 历史列表的浅拷贝\n    Agent->>Agent: system + history + user\n    Note over Agent,LLM: 未启用工具的分支\n    Agent->>LLM: invoke(messages)\n    LLM->>API: 非流式模型请求\n    API-->>LLM: 完整响应\n    LLM-->>Agent: response 字符串\n    Agent->>History: add_message(user)\n    Agent->>History: add_message(assistant)\n    Agent-->>Caller: return response"
   },
   {
     "id": "tool-loop",
@@ -124,9 +124,9 @@
         "match": "_execute_tool_call"
       },
       {
-        "file": "hello_agents/tools/registry.py",
+        "file": "tools/registry.py",
         "symbol": "ToolRegistry.execute_tool",
-        "label": "框架注册表",
+        "label": "ToolRegistry",
         "match": "registry.execute_tool"
       },
       {
@@ -136,7 +136,7 @@
         "match": "解析参数"
       }
     ],
-    "code": "flowchart TD\n    A[run 组织上下文] --> B{启用工具且有注册表?}\n    B -->|否| C[invoke 普通回答]\n    B -->|是| D[进入 _run_with_tool_calling]\n    D --> E{迭代次数小于上限?}\n    E -->|是| F[LLM.invoke 获取响应]\n    F --> G[_parse_tool_calls 解析文本标记]\n    G --> H{有工具标记?}\n    H -->|否| I[取当前响应作为最终回答]\n    H -->|是| J[逐个 _execute_tool_call]\n    J --> K{名称是 calculator?}\n    K -->|是| L[框架 registry.execute_tool]\n    K -->|否| M[解析参数 / get_tool / tool.run]\n    L --> N[清理标记并追加 assistant 和 user 工具结果]\n    M --> N\n    N --> O[迭代次数加一]\n    O --> E\n    E -->|否| P[额外 invoke 一次 / 不再解析工具]\n    P --> Q[保存原始用户消息和最终回答]\n    I --> Q\n    C --> Q\n    Q --> R[返回最终回答]"
+    "code": "flowchart TD\n    A[run 组织上下文] --> B{启用工具且有注册表?}\n    B -->|否| C[invoke 普通回答]\n    B -->|是| D[进入 _run_with_tool_calling]\n    D --> E{迭代次数小于上限?}\n    E -->|是| F[LLM.invoke 获取响应]\n    F --> G[_parse_tool_calls 解析文本标记]\n    G --> H{有工具标记?}\n    H -->|否| I[取当前响应作为最终回答]\n    H -->|是| J[逐个 _execute_tool_call]\n    J --> K{名称是 calculator?}\n    K -->|是| L[本地 registry.execute_tool]\n    K -->|否| M[解析参数 / get_tool / tool.run]\n    L --> N[清理标记并追加 assistant 和 user 工具结果]\n    M --> N\n    N --> O[迭代次数加一]\n    O --> E\n    E -->|否| P[额外 invoke 一次 / 不再解析工具]\n    P --> Q[保存原始用户消息和最终回答]\n    I --> Q\n    C --> Q\n    Q --> R[返回最终回答]"
   },
   {
     "id": "stream",
@@ -153,30 +153,30 @@
         "match": "SimpleAgent.stream_run"
       },
       {
-        "file": "hello_agents/core/llm.py",
-        "symbol": "HelloAgentsLLM.stream_invoke",
+        "file": "core/llm.py",
+        "symbol": "LLM.stream_invoke",
         "label": "stream_invoke",
         "match": "stream_invoke(messages)"
       },
       {
-        "file": "hello_agents/core/agent.py",
+        "file": "core/agent.py",
         "symbol": "Agent.get_history",
         "label": "get_history",
         "match": "get_history()"
       }
     ],
-    "code": "sequenceDiagram\n    autonumber\n    participant Caller as 调用方\n    participant Agent as SimpleAgent.stream_run\n    participant History as 框架 Agent 历史\n    participant LLM as HelloAgentsLLM\n    participant API as 模型服务\n    Caller->>Agent: stream_run(input_text)\n    Agent-->>Caller: 返回生成器\n    Caller->>Agent: 开始迭代\n    Agent->>History: get_history()\n    History-->>Agent: 历史列表\n    Agent->>Agent: 组织 system / history / user\n    Agent->>LLM: stream_invoke(messages)\n    LLM->>API: 流式请求\n    loop 每个响应片段\n        API-->>LLM: chunk\n        LLM-->>Agent: yield chunk\n        Agent->>Agent: 累积 full_response\n        Agent-->>Caller: yield chunk\n    end\n    Agent->>History: 完整迭代后保存 user 和 assistant\n    Note over Caller,History: 提前停止消费生成器时，不保证保存历史"
+    "code": "sequenceDiagram\n    autonumber\n    participant Caller as 调用方\n    participant Agent as SimpleAgent.stream_run\n    participant History as 本地 Agent 历史\n    participant LLM as 本地 LLM\n    participant API as 模型服务\n    Caller->>Agent: stream_run(input_text)\n    Agent-->>Caller: 返回生成器\n    Caller->>Agent: 开始迭代\n    Agent->>History: get_history()\n    History-->>Agent: 历史列表\n    Agent->>Agent: 组织 system / history / user\n    Agent->>LLM: stream_invoke(messages)\n    LLM->>API: 流式请求\n    loop 每个响应片段\n        API-->>LLM: chunk\n        LLM-->>Agent: yield chunk\n        Agent->>Agent: 累积 full_response\n        Agent-->>Caller: yield chunk\n    end\n    Agent->>History: 完整迭代后保存 user 和 assistant\n    Note over Caller,History: 提前停止消费生成器时，不保证保存历史"
   },
   {
     "id": "calculator",
     "title": "计算器编排调用",
     "kind": "时序图",
     "document": "docs/计算器工具调用流程.md",
-    "description": "复用原文档：测试函数手动调用计算器，再让模型组织回答。",
+    "description": "测试手动执行 calculate，再由本地 LLM.think 组织回答。",
     "sources": [
       {
         "file": "test/test_calculator.py",
-        "symbol": "test_with_simple_agent",
+        "symbol": "test_calculator_with_llm",
         "label": "测试编排",
         "match": "测试函数"
       },
@@ -188,7 +188,7 @@
       {
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.execute_tool",
-        "label": "本地注册表",
+        "label": "ToolRegistry",
         "match": "ToolRegistry"
       },
       {
@@ -198,13 +198,13 @@
         "match": "计算器 calculate"
       },
       {
-        "file": "hello_agents/core/llm.py",
-        "symbol": "HelloAgentsLLM.think",
+        "file": "core/llm.py",
+        "symbol": "LLM.think",
         "label": "think",
-        "match": "HelloAgentsLLM"
+        "match": "LLM"
       }
     ],
-    "code": "sequenceDiagram\n    autonumber\n    actor User as 用户\n    participant Test as 测试函数（模拟 Agent 编排）\n    participant LLM as HelloAgentsLLM\n    participant Registry as ToolRegistry\n    participant Calc as 计算器 calculate\n    participant API as 模型服务 API\n\n    Note over Test,API: 准备：create_llm() 创建客户端；create_calculator_registry() 注册 my_calculator → calculate\n    Note over User,Test: 测试代码预设问题，模拟用户输入\n    User->>Test: 请帮我计算 sqrt(16) + 2 * 3\n\n    rect rgb(255, 248, 235)\n        Note over Test,Calc: 第一阶段：执行计算器工具\n        Test->>Registry: execute_tool(\"my_calculator\", \"sqrt(16) + 2 * 3\")\n        Registry->>Registry: 从 _functions 中取出对应的 func\n        Registry->>Calc: calculate(\"sqrt(16) + 2 * 3\")\n        Calc->>Calc: ast.parse(expression, mode=\"eval\") 解析表达式\n        Calc->>Calc: _eval_node() 递归计算：4.0 + 6\n        Calc-->>Registry: 返回字符串 \"10.0\"\n        Registry-->>Test: 返回 calc_result = \"10.0\"\n    end\n\n    rect rgb(237, 246, 255)\n        Note over Test,API: 第二阶段：生成自然语言回答\n        Test->>Test: 构建 final_messages，包含原问题和计算结果\n        Test->>LLM: response = llm.think(final_messages)\n        LLM-->>Test: 返回生成器，此时尚未发送请求\n        Test->>LLM: for chunk in response：开始迭代\n        LLM->>API: chat.completions.create(messages=..., stream=True)\n        loop 逐块返回，直到响应结束\n            API-->>LLM: 返回响应片段\n            LLM-->>Test: yield chunk（文本片段）\n            Test->>Test: print(chunk, end=\"\", flush=True)\n        end\n    end\n\n    Note over Test,User: 终端展示模型回答，下面仅为示例措辞\n    Test-->>User: sqrt(16) = 4，2 × 3 = 6，所以结果是 10。"
+    "code": "sequenceDiagram\n    autonumber\n    actor User as 用户\n    participant Test as 测试函数（模拟 Agent 编排）\n    participant LLM as LLM\n    participant Registry as ToolRegistry\n    participant Calc as 计算器 calculate\n    participant API as 模型服务 API\n\n    Note over Test,API: 准备：create_llm() 创建客户端；create_calculator_registry() 注册 calculate → calculate\n    Note over User,Test: 测试代码预设问题，模拟用户输入\n    User->>Test: 请帮我计算 sqrt(16) + 2 * 3\n\n    rect rgb(255, 248, 235)\n        Note over Test,Calc: 第一阶段：执行计算器工具\n        Test->>Registry: execute_tool(\"calculate\", \"sqrt(16) + 2 * 3\")\n        Registry->>Registry: 对象表未命中，从 _functions 取出 func\n        Registry->>Calc: calculate(\"sqrt(16) + 2 * 3\")\n        Calc->>Calc: ast.parse(expression, mode=\"eval\") 解析表达式\n        Calc->>Calc: _eval_node() 递归计算：4.0 + 6\n        Calc-->>Registry: 返回字符串 \"10.0\"\n        Registry-->>Test: 返回 calc_result = \"10.0\"\n    end\n\n    rect rgb(237, 246, 255)\n        Note over Test,API: 第二阶段：生成自然语言回答\n        Test->>Test: 构建 final_messages，包含原问题和计算结果\n        Test->>LLM: response = llm.think(final_messages)\n        LLM-->>Test: 返回生成器，此时尚未发送请求\n        Test->>LLM: for chunk in response：开始迭代\n        LLM->>API: chat.completions.create(messages=..., stream=True)\n        loop 逐块返回，直到响应结束\n            API-->>LLM: 返回响应片段\n            LLM-->>Test: yield chunk（文本片段）\n            Test->>Test: print(chunk, end=\"\", flush=True)\n        end\n    end\n\n    Note over Test,User: 终端展示模型回答，下面仅为示例措辞\n    Test-->>User: sqrt(16) = 4，2 × 3 = 6，所以结果是 10。"
   },
   {
     "id": "evaluate",
@@ -214,6 +214,11 @@
     "block": 5,
     "description": "解析 AST 并递归求值；保留当前未实现分支和异常边界。",
     "sources": [
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.run",
+        "label": "CalculatorTool.run"
+      },
       {
         "file": "tools/calculator_tool.py",
         "symbol": "calculate",
@@ -235,7 +240,7 @@
     "kind": "流程图",
     "document": "docs/flows/核心代码流程.md",
     "block": 6,
-    "description": "本地注册表只执行函数工具，与 Agent 使用的 SDK 注册表区分。",
+    "description": "本地注册表支持对象和函数工具；同名对象优先，工具异常直接传播。",
     "sources": [
       {
         "file": "tools/calculator_tool.py",
@@ -246,19 +251,19 @@
       {
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.register_function",
-        "label": "register_function",
+        "label": "ToolRegistry",
         "match": "register_function"
       },
       {
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.register_tool",
-        "label": "register_tool",
+        "label": "ToolRegistry",
         "match": "register_tool"
       },
       {
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.execute_tool",
-        "label": "execute_tool",
+        "label": "ToolRegistry",
         "match": "execute_tool"
       },
       {
@@ -267,6 +272,271 @@
         "label": "本地 Tool 抽象类"
       }
     ],
-    "code": "flowchart TD\n    A[create_calculator_registry] --> B[创建项目 ToolRegistry]\n    B --> C[register_function my_calculator → calculate]\n    C --> D[保存到 _functions]\n    E[register_tool 对象] --> F[保存到 _tools]\n    G[execute_tool name / parameters] --> H{名称在 _functions?}\n    H -->|是| I[取出 func]\n    I --> J[func parameters]\n    J --> K[返回函数结果]\n    H -->|否| L[返回工具不存在]\n    D -.供查询.-> H\n    F -.当前执行方法不查询对象表.-> L"
+    "code": "flowchart TD\n    A[create_calculator_registry] --> B[创建项目 ToolRegistry]\n    B --> C[register_function calculate → calculate]\n    C --> D[保存到 _functions]\n    E[register_tool 对象] --> F[保存到 _tools]\n    G[execute_tool name / parameters] --> P{名称在 _tools?}\n    P -->|是| Q[调用对象 run / input 字典]\n    Q --> K[返回工具结果]\n    P -->|否| H{名称在 _functions?}\n    H -->|是| I[取出 func]\n    I --> J[func parameters]\n    J --> K\n    H -->|否| L[返回工具不存在]\n    D -.供查询.-> H\n    F -.供查询.-> P"
+  },
+  {
+    "id": "llm-request",
+    "title": "LLM 统一请求",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 7,
+    "description": "本地入口合并选项，固定响应模式，进入 SDK 请求边界。",
+    "sources": [
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.invoke",
+        "label": "invoke",
+        "match": "LLM.invoke"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.think",
+        "label": "think",
+        "match": "LLM.think"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM._request",
+        "label": "_request",
+        "match": "options 覆盖"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.__init__",
+        "label": "初始化与超时"
+      }
+    ],
+    "code": "flowchart TD\n    A[LLM.invoke] --> B{本次 stream 为真?}\n    B -->|是| C[抛出 ValueError]\n    B -->|否| D[调用 _request / stream=False]\n    E[LLM.think 开始迭代] --> F[可选 temperature 写入 kwargs]\n    F --> G[调用 _request / stream=True]\n    D --> H[默认 model / messages / temperature]\n    G --> H\n    H --> I[可选默认 max_tokens]\n    I --> J[options 覆盖默认参数]\n    J --> K[最后强制当前入口的 stream]\n    K --> L[SDK chat.completions.create]\n    L --> M{当前入口}\n    M -->|invoke| N[第一项 content 或空字符串]\n    M -->|think| O[with 管理流 / 跳过空事件 / 打印并 yield]"
+  },
+  {
+    "id": "react",
+    "title": "ReAct 推理与行动",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 8,
+    "description": "选择默认或自定义模板，再执行 Thought / Action / Observation 循环。",
+    "sources": [
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.run",
+        "label": "ReAct.run",
+        "match": "ReActAgent.run"
+      },
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.__init__",
+        "label": "初始化与模板选择",
+        "match": "ReActAgent.__init__"
+      },
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "DEFAULT_REACT_PROMPT",
+        "label": "默认提示词模板",
+        "match": "DEFAULT_REACT_PROMPT"
+      },
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_output",
+        "label": "解析输出",
+        "match": "_parse_output"
+      },
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action",
+        "label": "解析行动",
+        "match": "_parse_action 拆分"
+      },
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action_input",
+        "label": "提取最终答案",
+        "match": "_parse_action_input"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "调度工具",
+        "match": "ToolRegistry.execute_tool"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.invoke",
+        "label": "invoke",
+        "match": "LLM.invoke"
+      },
+      {
+        "file": "test/test_react_agent.py",
+        "symbol": "test_calculator_result_reaches_next_model_request",
+        "label": "离线计算器验证"
+      }
+    ],
+    "code": "flowchart TD\n    Init[ReActAgent.__init__] --> Template{custom_prompt 非空?}\n    Template -->|是| Custom[使用 custom_prompt]\n    Template -->|否| Default[DEFAULT_REACT_PROMPT]\n    Custom --> A\n    Default --> A\n    A[ReActAgent.run] --> B[清空 current_history / 步数归零]\n    B --> C{步数小于 max_steps?}\n    C -->|否| D[保存问答 / 返回超限提示]\n    C -->|是| E[步数加一 / 工具说明与轨迹格式化模板]\n    E --> F[LLM.invoke]\n    F --> G[_parse_output 提取 Thought / Action]\n    G --> H{Action 以 Finish 开头?}\n    H -->|是| I[_parse_action_input 提取答案]\n    I --> J[本地 Message 保存问答 / 返回]\n    H -->|否| K{存在 Action?}\n    K -->|否| C\n    K -->|是| L[_parse_action 拆分工具名与输入]\n    L --> M[ToolRegistry.execute_tool]\n    M --> N[追加 Action / Observation]\n    N --> C"
+  },
+  {
+    "id": "plan",
+    "title": "先规划再求解",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 9,
+    "description": "规划列表后由模型逐步解题，不自动执行工具。",
+    "sources": [
+      {
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "PlanAndSolveAgent.run",
+        "label": "run",
+        "match": "PlanAndSolveAgent.run"
+      },
+      {
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "Planner.plan",
+        "label": "Planner.plan",
+        "match": "Planner.plan"
+      },
+      {
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "Executor.execute",
+        "label": "Executor.execute",
+        "match": "Executor.execute"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.think",
+        "label": "think",
+        "match": "LLM.think"
+      }
+    ],
+    "code": "flowchart TD\n    A[PlanAndSolveAgent.run] --> B[Planner.plan]\n    B --> C[消费 LLM.think / 拼接完整计划文本]\n    C --> D[提取 python 围栏 / literal_eval]\n    D --> E{解析为非空列表?}\n    E -->|否| F[停止 / 返回 None]\n    E -->|是| G[Executor.execute]\n    G --> H[逐步组织问题 / 计划 / 先前结果]\n    H --> I[消费 LLM.think / 保存步骤结果]\n    I --> J{还有步骤?}\n    J -->|是| H\n    J -->|否| K[返回最后一步回答]"
+  },
+  {
+    "id": "reflection",
+    "title": "反思与改进",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 10,
+    "description": "初答、反思、完整匹配停止用语或继续改进。",
+    "sources": [
+      {
+        "file": "agents/reflection_agent.py",
+        "symbol": "ReflectionAgent.run",
+        "label": "run",
+        "match": "ReflectionAgent.run"
+      },
+      {
+        "file": "agents/reflection_agent.py",
+        "symbol": "ReflectionAgent._get_llm_response",
+        "label": "模型文本辅助方法",
+        "match": "_get_llm_response"
+      },
+      {
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.add_record",
+        "label": "记录轨迹",
+        "match": "Memory.add_record"
+      },
+      {
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.get_last_execution",
+        "label": "最近结果",
+        "match": "Memory.get_last_execution"
+      }
+    ],
+    "code": "flowchart TD\n    A[ReflectionAgent.run] --> B[重置 Memory]\n    B --> C[_get_llm_response / 初始回答]\n    C --> D[Memory.add_record execution]\n    D --> E{反思轮数未用完?}\n    E -->|否| K[返回 Memory.get_last_execution]\n    E -->|是| F[读取最近 execution / 请求反思]\n    F --> G[记录 reflection]\n    G --> H{反馈去空白后等于无需改进?}\n    H -->|是| K\n    H -->|否| I[根据反馈请求改进]\n    I --> J[记录 execution / 进入下一轮]\n    J --> E"
+  },
+  {
+    "id": "advanced-search",
+    "title": "高级搜索与回退",
+    "kind": "流程图",
+    "document": "docs/搜索工具与测试说明.md",
+    "block": 0,
+    "description": "绑定方法注册为函数工具，按可用搜索源顺序尝试。",
+    "sources": [
+      {
+        "file": "tools/advanced_search.py",
+        "symbol": "create_advanced_search_registry",
+        "label": "创建搜索注册表",
+        "match": "创建高级搜索注册表"
+      },
+      {
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool._setup_search_sources",
+        "label": "初始化搜索源",
+        "match": "检查密钥"
+      },
+      {
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool.search",
+        "label": "search",
+        "match": "按顺序尝试搜索源"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "execute_tool",
+        "match": "execute_tool"
+      }
+    ],
+    "code": "flowchart TD\n    A[测试加载环境变量] --> B[创建高级搜索注册表]\n    B --> C[创建 AdvancedSearchTool]\n    C --> D[检查密钥和 SDK / 建立可用搜索源列表]\n    D --> E[注册 advanced_search 对应的 search 方法]\n    E --> F[execute_tool 接收查询字符串]\n    F --> G{查询为空或无可用搜索源?}\n    G -->|是| H[返回输入错误或配置提示]\n    G -->|否| I[按顺序尝试搜索源]\n    I --> J[请求并格式化结果]\n    J --> K{结果非空且不含 未找到?}\n    K -->|是| L[返回当前结果]\n    K -->|否| M[尝试下一搜索源]\n    J -.发生异常.-> M\n    M --> N{还有搜索源?}\n    N -->|有| I\n    N -->|无| O[返回所有搜索源失败]"
+  },
+  {
+    "id": "chain",
+    "title": "顺序工具链",
+    "kind": "流程图",
+    "document": "docs/工具链与异步执行说明.md",
+    "block": 0,
+    "description": "输入模板读取 context，逐步执行并传递结果；当前 Agent 未自动接入。",
+    "sources": [
+      {
+        "file": "tools/chain.py",
+        "symbol": "ToolChain.execute",
+        "label": "execute",
+        "match": "接收注册表"
+      },
+      {
+        "file": "tools/chain.py",
+        "symbol": "ToolChain.add_step",
+        "label": "add_step"
+      },
+      {
+        "file": "tools/chain.py",
+        "symbol": "ToolChainManager.execute_chain",
+        "label": "管理器执行入口"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "execute_tool",
+        "match": "registry.execute_tool"
+      }
+    ],
+    "code": "flowchart TD\n    A[接收注册表 / 初始输入 / context] --> B[写入 context.input]\n    B --> C[取下一个步骤]\n    C --> D[用 context 填充输入模板]\n    D --> E[registry.execute_tool]\n    E --> F[把结果保存到 output_key]\n    F --> G{还有步骤?}\n    G -->|有| C\n    G -->|无| H[返回最后一步结果]\n    D -.缺少变量 KeyError.-> I[返回模板错误提示]"
+  },
+  {
+    "id": "async-tools",
+    "title": "并发工具执行",
+    "kind": "时序图",
+    "document": "docs/工具链与异步执行说明.md",
+    "block": 1,
+    "description": "同步工具交给线程池，gather 按输入顺序收集。",
+    "sources": [
+      {
+        "file": "tools/async_executor.py",
+        "symbol": "AsyncToolExecutor.execute_tools_parallel",
+        "label": "并发入口",
+        "match": "await execute_tools_parallel"
+      },
+      {
+        "file": "tools/async_executor.py",
+        "symbol": "AsyncToolExecutor.execute_tool_async",
+        "label": "线程池执行",
+        "match": "run_in_executor"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "注册表",
+        "match": "execute_tool(name"
+      }
+    ],
+    "code": "sequenceDiagram\n    participant Caller as 调用方\n    participant Async as AsyncToolExecutor\n    participant Pool as 线程池\n    participant Registry as 工具注册表\n    Caller->>Async: await execute_tools_parallel(tasks)\n    Async->>Async: 为每项输入创建协程\n    Async->>Async: asyncio.gather 调度并等待\n    loop 每个任务独立提交\n        Async->>Pool: run_in_executor\n        Pool->>Registry: execute_tool(name, input_data)\n        Registry-->>Pool: 工具结果\n        Pool-->>Async: 交回对应任务结果\n    end\n    Async-->>Caller: 按输入任务顺序返回 results"
   }
 ]

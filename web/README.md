@@ -4,7 +4,7 @@
 
 ## 启动
 
-在项目根目录、激活 `hello-agents` 环境后运行：
+使用 Python 3.11，在项目根目录运行：
 
 ```powershell
 python web/serve.py
@@ -16,13 +16,13 @@ python web/serve.py
 python web/serve.py --port 5174
 ```
 
-启动时自动生成 `sources.json` 和 `diagrams.json`。请用安装了 `hello_agents` 的 Python 环境运行，以便同时展示第三方客户端源码；缺少该包时仍可查看项目其他文件。
+启动时自动生成 `sources.json` 和 `diagrams.json`。索引生成器只使用Python标准库，解析本地源码，不导入业务模块或第三方框架。
 
 ## 交互
 
 - 流程图：顶部独立视图提供 8 个核心场景，时序图展示跨组件调用，流程图展示判断与循环。可从图打开源码弹窗，也可从源码弹窗进入相关流程；支持平移、缩放、100% 和适应画布。详细说明见 [流程图视图说明](../docs/流程图视图说明.md)。
 
-- 显示层级：默认“简化显示”，将 23 个节点收拢为 6 个组件（入口、连接、Agent、模型客户端、工具、基础组件）。点击组件，在弹窗内按需进入具体节点；“完全展开”显示所有函数与组件节点。
+- 显示层级：默认“简化显示”，将当前节点收拢为 6 个组件（入口、连接、Agent、模型客户端、工具、基础组件）。点击组件，在弹窗内按需进入具体节点；“完全展开”显示所有函数与组件节点。
 - 简化图的关系由完整图按组件归属汇总，隐藏组内连线，合并重复的跨组关联，不增加推测的调用。两种视图各自保留拖动布局、缩放和平移状态。
 - 点击节点：打开接近全屏的详情弹窗，左侧功能讲解、右侧真实源码同时展示。小屏幕上下排列，两个区域独立滚动。
 - 步骤对照：点击左侧执行步骤，定位并高亮右侧对应源码行；支持复制源码和自动换行。
@@ -34,15 +34,15 @@ python web/serve.py --port 5174
 - 布局：点击“重置布局”恢复节点初始位置、视图居中和 100% 倍率；拖动布局和相机位置在本次页面会话中保留，刷新恢复默认。
 - 内容：无侧边栏、标语、研发阶段或未来预览，只展示当前代码中已有的组件和关系。
 
-信息流不是实际运行 trace。提供当前 main.py、SimpleAgent 普通对话、工具循环三种教学模拟；后两者是方法级演示，当前 main.py 尚未接入 Agent，也没有实际执行工具。所有模拟数据均在前端生成。
+信息流不是实际运行 trace。提供 main.py、SimpleAgent 和 ReAct 等路径的教学模拟；当前 main.py 尚未接入 Agent，前端不会实际执行工具。所有模拟数据均在前端生成。
 
 ## 当前代码关系与注意事项
 
-项目 `agents/simple_agent.py` 的 SimpleAgent 继承安装包的 SimpleAgent，后者继承框架 Agent；并非项目 `core/agent.py`。Message、Config、ToolRegistry 同样从安装包导入。同名本地类与框架类使用完整路径区分。
+SimpleAgent 和 ReActAgent 均直接继承本地 `core/agent.py` 中的 Agent。LLM、Message、Config、ToolRegistry、CalculatorTool 也由本地模块实现。
 
 同步普通对话和工具循环已写入项目源码。关键入口包含 run、invoke、增强提示词、工具标记解析、参数解析、工具执行与注册表方法。invoke 的下游 chat.completions.create 属于 OpenAI SDK，本版展示调用边界，不伪造未索引的实现。
 
-stream_run 已使用 get_history()，其他工具分支已调用 tool.run()；地图已移除过期的错误提示。仍保留当前实现的边界：remove_tool 与框架 unregister 方法名不匹配；本地注册表只执行函数工具，schema 方法依赖未定义成员；计算器尚无 UnaryOp 分支。此次仅更新展示与索引，没有改动 Python 业务代码。
+注册表已支持对象和函数工具，remove_tool 已对接本地 unregister_tool。仍保留当前边界：schema 方法依赖未定义成员；计算器尚无 UnaryOp 分支；函数注册不代表 SimpleAgent 的对象工具分支能够直接调用。
 
 ## 随开发更新
 
@@ -75,7 +75,7 @@ stream_run 已使用 get_history()，其他工具分支已调用 tool.run()；�
 | `sources.json` | 自动生成的源码快照，不应手工修改 |
 | `serve.py` | 只绑定本机、只提供 web 目录的静态预览 |
 
-白名单包含 main.py、core 下四个基础模块、项目 SimpleAgent、本地工具三文件、两个测试入口，以及可用时的八个框架模块（包括工具基类及框架计算器），目前共 19 个文件。不读取 `.env` 或 `models.json`，不执行项目入口或请求模型。新增索引文件前需确认其不包含硬编码密钥。
+白名单由 `generate_sources.py` 的 SOURCE_FILES 维护，只包含项目入口、基础组件、Agent、工具和选定测试文件。不读取 `.env` 或 `models.json`，不执行项目入口或请求模型。新增索引文件前需确认其不包含硬编码密钥。
 
 这版采用原生 SVG、DOM 和 Pointer Events 实现交互。节点和连线共用可为负数的世界坐标，独立相机通过 translate/scale 控制视图，避免使用有限滚动区域限制拖动。SVG 允许内容越过自身原点，只有最外层视口裁切显示。连接端点固定为节点 ID，不支持在界面中改连线关系。
 

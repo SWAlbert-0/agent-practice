@@ -1,17 +1,21 @@
 from typing import Optional, Iterator
-from hello_agents import SimpleAgent, HelloAgentsLLM, Config, Message, ToolRegistry
+from core.agent import Agent
+from core.config import Config
+from core.message import Message
+from core.llm import LLM
+from tools.registry import ToolRegistry
 import re
 
-class SimpleAgent(SimpleAgent):
+class SimpleAgent(Agent):
     """
-    重写的简单对话Agent
-    展示如何基于框架基类构建自定义Agent
+    简单对话Agent
+    基于本地Agent基类实现对话、历史管理与工具调用
     """
 
     def __init__(
         self,
         name: str,
-        llm: HelloAgentsLLM,
+        llm: LLM,
         system_prompt: Optional[str] = None,
         config: Optional[Config] = None,
         tool_registry: Optional['ToolRegistry'] = None,
@@ -226,7 +230,7 @@ class SimpleAgent(SimpleAgent):
     def add_tool(self, tool) -> None:
         """添加工具到Agent（便利方法）"""
         if not self.tool_registry:
-            from hello_agents import ToolRegistry
+            from tools.registry import ToolRegistry
             self.tool_registry = ToolRegistry()
             self.enable_tool_calling = True
 

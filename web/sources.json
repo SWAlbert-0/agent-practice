@@ -9,12 +9,95 @@
         "end": 16,
         "file": "core/llm.py",
         "symbol": "create_llm"
+      },
+      {
+        "line": 12,
+        "start": 18,
+        "end": 27,
+        "file": "core/llm.py",
+        "symbol": "LLM.think"
+      }
+    ],
+    "origin": "project"
+  },
+  "core/llm.py": {
+    "code": "\"\"\"本地LLM客户端，以及根据models.json创建客户端的配置工厂。\"\"\"\n\nimport json\nimport os\nfrom pathlib import Path\nfrom typing import Any, Iterator\n\nfrom dotenv import load_dotenv\nfrom openai import OpenAI\n\n\n# 通过文件位置找到项目根目录，不依赖终端的当前目录。\nPROJECT_ROOT = Path(__file__).resolve().parents[1]\n\n\nclass LLM:\n    \"\"\"本地实现的OpenAI兼容客户端，供Agent统一调用。\"\"\"\n\n    def __init__(\n        self,\n        model: str,\n        api_key: str,\n        base_url: str,\n        provider: str,\n        temperature: float = 0.7,\n        max_tokens: int | None = None,\n        timeout: float | None = None,\n    ):\n        # 连接信息由调用方明确提供，不自动猜测服务商或读取其他服务的密钥。\n        self.model = model\n        self.api_key = api_key\n        self.base_url = base_url\n        self.provider = provider\n        self.temperature = temperature\n        self.max_tokens = max_tokens\n        self.timeout = timeout if timeout is not None else float(os.getenv(\"LLM_TIMEOUT\", \"60\"))\n        self._client = OpenAI(api_key=api_key, base_url=base_url, timeout=self.timeout)\n\n    def _request(self, messages: list[dict[str, Any]], stream: bool, options: dict[str, Any]):\n        \"\"\"组织两种调用共用的参数，调用时的选项优先于实例默认值。\"\"\"\n        parameters = {\n            \"model\": self.model,\n            \"messages\": messages,\n            \"temperature\": self.temperature,\n        }\n        if self.max_tokens is not None:\n            parameters[\"max_tokens\"] = self.max_tokens\n        parameters.update(options)\n        # 返回值类型由调用入口决定，避免invoke误收到流式响应。\n        parameters[\"stream\"] = stream\n        return self._client.chat.completions.create(**parameters)\n\n    def invoke(self, messages: list[dict[str, Any]], **kwargs) -> str:\n        \"\"\"非流式调用，等待完整回答后返回文本，不主动打印。\"\"\"\n        if kwargs.pop(\"stream\", False):\n            raise ValueError(\"流式调用请使用think()或stream_invoke()\")\n        response = self._request(messages, stream=False, options=kwargs)\n        return response.choices[0].message.content or \"\"\n\n    def think(\n        self,\n        messages: list[dict[str, Any]],\n        temperature: float | None = None,\n        **kwargs,\n    ) -> Iterator[str]:\n        \"\"\"迭代时才发送流式请求，实时打印并逐段返回文本。\"\"\"\n        if temperature is not None:\n            kwargs[\"temperature\"] = temperature\n        print(f\"🧠 正在调用 {self.model} 模型...\")\n\n        # 上下文管理器在迭代结束、异常或生成器关闭时释放响应连接。\n        with self._request(messages, stream=True, options=kwargs) as response:\n            for chunk in response:\n                # 用量等事件可能没有choices；角色或结束事件可能没有正文。\n                if not chunk.choices:\n                    continue\n                content = chunk.choices[0].delta.content\n                if content:\n                    print(content, end=\"\", flush=True)\n                    yield content\n        print()\n\n    def stream_invoke(self, messages: list[dict[str, Any]], **kwargs) -> Iterator[str]:\n        \"\"\"流式调用的兼容入口，将选项和文本片段交给think处理。\"\"\"\n        yield from self.think(messages, **kwargs)\n\n    def close(self) -> None:\n        \"\"\"不再使用客户端时，关闭SDK持有的连接。\"\"\"\n        self._client.close()\n\n\ndef create_llm(\n    provider: str | None = None,\n    model: str | None = None,\n    *,\n    config_path: str | Path | None = None,\n) -> LLM:\n    \"\"\"显式参数优先，否则使用配置文件中的默认服务和模型。\n\n    config_path 可指定其他 JSON 文件，默认读取项目根目录的 models.json。\n    .env 始终从项目根目录加载，且不覆盖进程中已有的环境变量。\n    \"\"\"\n    # 1. 加载密钥和服务配置。\n    load_dotenv(PROJECT_ROOT / \".env\")\n    path = Path(config_path) if config_path is not None else PROJECT_ROOT / \"models.json\"\n    config = json.loads(path.read_text(encoding=\"utf-8-sig\"))\n\n    # 2. 选择服务，再读取该服务的模型和连接参数。\n    provider = provider or config[\"defaultProvider\"]\n    settings = config[\"providers\"][provider]\n    model = model or settings[\"defaultModel\"]\n    base_url = settings[\"baseUrl\"]\n\n    # 3. 云端密钥从环境变量读取，本地服务使用配置中的占位密钥。\n    if \"apiKeyEnv\" in settings:\n        api_key = os.environ[settings[\"apiKeyEnv\"]]\n    else:\n        api_key = settings[\"apiKey\"]\n\n    # 尽早指出选中服务缺少密钥，不发送无效请求。\n    if not api_key:\n        raise ValueError(f\"{provider} 的 API 密钥不能为空\")\n\n    # 4. 显式传入整组参数，创建本地客户端。\n    return LLM(\n        provider=provider,\n        model=model,\n        base_url=base_url,\n        api_key=api_key,\n    )\n",
+    "symbols": {
+      "LLM": {
+        "start": 16,
+        "end": 89,
+        "doc": "本地实现的OpenAI兼容客户端，供Agent统一调用。"
+      },
+      "LLM.__init__": {
+        "start": 19,
+        "end": 37,
+        "doc": ""
+      },
+      "LLM._request": {
+        "start": 39,
+        "end": 51,
+        "doc": "组织两种调用共用的参数，调用时的选项优先于实例默认值。"
+      },
+      "LLM.invoke": {
+        "start": 53,
+        "end": 58,
+        "doc": "非流式调用，等待完整回答后返回文本，不主动打印。"
+      },
+      "LLM.think": {
+        "start": 60,
+        "end": 81,
+        "doc": "迭代时才发送流式请求，实时打印并逐段返回文本。"
+      },
+      "LLM.stream_invoke": {
+        "start": 83,
+        "end": 85,
+        "doc": "流式调用的兼容入口，将选项和文本片段交给think处理。"
+      },
+      "LLM.close": {
+        "start": 87,
+        "end": 89,
+        "doc": "不再使用客户端时，关闭SDK持有的连接。"
+      },
+      "create_llm": {
+        "start": 92,
+        "end": 130,
+        "doc": "显式参数优先，否则使用配置文件中的默认服务和模型。\n\nconfig_path 可指定其他 JSON 文件，默认读取项目根目录的 models.json。\n.env 始终从项目根目录加载，且不覆盖进程中已有的环境变量。"
+      }
+    },
+    "calls": [
+      {
+        "line": 57,
+        "start": 19,
+        "end": 32,
+        "file": "core/llm.py",
+        "symbol": "LLM._request"
+      },
+      {
+        "line": 72,
+        "start": 13,
+        "end": 26,
+        "file": "core/llm.py",
+        "symbol": "LLM._request"
+      },
+      {
+        "line": 85,
+        "start": 19,
+        "end": 29,
+        "file": "core/llm.py",
+        "symbol": "LLM.think"
+      },
+      {
+        "line": 125,
+        "start": 11,
+        "end": 14,
+        "file": "core/llm.py",
+        "symbol": "LLM.__init__"
       }
     ],
     "origin": "project"
   },
   "core/agent.py": {
-    "code": "\"\"\"Agent基类\"\"\"\nfrom abc import ABC, abstractmethod\nfrom typing import Optional, Any\nfrom .message import Message\nfrom .llm import HelloAgentsLLM\nfrom .config import Config\n\n# 通过继承 ABC 被定义为一个不能直接实例化的抽象类\nclass Agent(ABC):\n    \"\"\"Agent基类\"\"\"\n\n    # 构造函数 __init__ 清晰地定义了 Agent 的核心依赖：名称、LLM 实例、系统提示词和配置。\n    def __init__(\n        self,\n        name: str,\n        llm: HelloAgentsLLM,\n        system_prompt: Optional[str] = None,\n        config: Optional[Config] = None\n    ):\n        self.name = name\n        self.llm = llm\n        self.system_prompt = system_prompt\n        self.config = config or Config()\n        self._history: list[Message] = []\n\n    # 使用 @abstractmethod 装饰的 run 方法，强制所有子类必须实现此方法，从而保证了所有智能体都有统一的执行入口。\n    @abstractmethod\n    def run(self, input_text: str, **kwargs) -> str:\n        \"\"\"运行Agent\"\"\"\n        pass\n    \n    def add_message(self, message: Message):\n        \"\"\"添加消息到历史记录\"\"\"\n        self._history.append(message)\n    \n    def clear_history(self):\n        \"\"\"清空历史记录\"\"\"\n        self._history.clear()\n    \n    def get_history(self) -> list[Message]:\n        \"\"\"获取历史记录\"\"\"\n        return self._history.copy()\n    \n    def __str__(self) -> str:\n        return f\"Agent(name={self.name}, provider={self.llm.provider})\"\n",
+    "code": "\"\"\"Agent基类\"\"\"\nfrom abc import ABC, abstractmethod\nfrom typing import Optional, Any\nfrom .message import Message\nfrom .llm import LLM\nfrom .config import Config\n\n# 通过继承 ABC 被定义为一个不能直接实例化的抽象类\nclass Agent(ABC):\n    \"\"\"Agent基类\"\"\"\n\n    # 构造函数 __init__ 清晰地定义了 Agent 的核心依赖：名称、LLM 实例、系统提示词和配置。\n    def __init__(\n        self,\n        name: str,\n        llm: LLM,\n        system_prompt: Optional[str] = None,\n        config: Optional[Config] = None\n    ):\n        self.name = name\n        self.llm = llm\n        self.system_prompt = system_prompt\n        self.config = config or Config()\n        self._history: list[Message] = []\n\n    # 使用 @abstractmethod 装饰的 run 方法，强制所有子类必须实现此方法，从而保证了所有智能体都有统一的执行入口。\n    @abstractmethod\n    def run(self, input_text: str, **kwargs) -> str:\n        \"\"\"运行Agent\"\"\"\n        pass\n    \n    def add_message(self, message: Message):\n        \"\"\"添加消息到历史记录\"\"\"\n        self._history.append(message)\n    \n    def clear_history(self):\n        \"\"\"清空历史记录\"\"\"\n        self._history.clear()\n    \n    def get_history(self) -> list[Message]:\n        \"\"\"获取历史记录\"\"\"\n        return self._history.copy()\n    \n    def __str__(self) -> str:\n        return f\"Agent(name={self.name}, provider={self.llm.provider})\"\n",
     "symbols": {
       "Agent": {
         "start": 9,
@@ -112,122 +195,693 @@
     "calls": [],
     "origin": "project"
   },
-  "core/llm.py": {
-    "code": "\"\"\"根据 models.json 中的一组配置创建模型客户端。\"\"\"\n\nimport json\nimport os\nfrom pathlib import Path\n\nfrom dotenv import load_dotenv\nfrom hello_agents import HelloAgentsLLM\n\n\n# 通过文件位置找到项目根目录，不依赖终端的当前目录。\nPROJECT_ROOT = Path(__file__).resolve().parents[1]\n\n\ndef create_llm(\n    provider: str | None = None,\n    model: str | None = None,\n    *,\n    config_path: str | Path | None = None,\n) -> HelloAgentsLLM:\n    \"\"\"显式参数优先，否则使用配置文件中的默认服务和模型。\n\n    config_path 可指定其他 JSON 文件，默认读取项目根目录的 models.json。\n    .env 始终从项目根目录加载，且不覆盖进程中已有的环境变量。\n    \"\"\"\n    # 1. 加载密钥和服务配置。\n    load_dotenv(PROJECT_ROOT / \".env\")\n    path = Path(config_path) if config_path is not None else PROJECT_ROOT / \"models.json\"\n    config = json.loads(path.read_text(encoding=\"utf-8-sig\"))\n\n    # 2. 选择服务，再读取该服务的模型和连接参数。\n    provider = provider or config[\"defaultProvider\"]\n    settings = config[\"providers\"][provider]\n    model = model or settings[\"defaultModel\"]\n    base_url = settings[\"baseUrl\"]\n\n    # 3. 云端密钥从环境变量读取，本地服务使用配置中的占位密钥。\n    if \"apiKeyEnv\" in settings:\n        api_key = os.environ[settings[\"apiKeyEnv\"]]\n    else:\n        api_key = settings[\"apiKey\"]\n\n    # 空密钥会让基础类尝试读取其他配置，因此这里保留一个必要检查。\n    if not api_key:\n        raise ValueError(f\"{provider} 的 API 密钥不能为空\")\n\n    # 4. 显式传入整组参数，避免基础类自动检测时混用不同服务的配置。\n    return HelloAgentsLLM(\n        provider=provider,\n        model=model,\n        base_url=base_url,\n        api_key=api_key,\n    )\n",
-    "symbols": {
-      "create_llm": {
-        "start": 15,
-        "end": 53,
-        "doc": "显式参数优先，否则使用配置文件中的默认服务和模型。\n\nconfig_path 可指定其他 JSON 文件，默认读取项目根目录的 models.json。\n.env 始终从项目根目录加载，且不覆盖进程中已有的环境变量。"
-      }
-    },
-    "calls": [],
-    "origin": "project"
-  },
   "agents/simple_agent.py": {
-    "code": "from typing import Optional, Iterator\nfrom hello_agents import SimpleAgent, HelloAgentsLLM, Config, Message, ToolRegistry\nimport re\n\nclass SimpleAgent(SimpleAgent):\n    \"\"\"\n    重写的简单对话Agent\n    展示如何基于框架基类构建自定义Agent\n    \"\"\"\n\n    def __init__(\n        self,\n        name: str,\n        llm: HelloAgentsLLM,\n        system_prompt: Optional[str] = None,\n        config: Optional[Config] = None,\n        tool_registry: Optional['ToolRegistry'] = None,\n        enable_tool_calling: bool = True\n    ):\n        super().__init__(name, llm, system_prompt, config)\n        self.tool_registry = tool_registry\n        self.enable_tool_calling = enable_tool_calling and tool_registry is not None\n        print(f\"✅ {name} 初始化完成，工具调用: {'启用' if self.enable_tool_calling else '禁用'}\")\n\n    def run(self, input_text: str, max_tool_iterations: int = 3, **kwargs) -> str:\n        \"\"\"\n        重写的运行方法 - 实现简单对话逻辑，支持可选工具调用\n        \"\"\"\n        print(f\"🤖 {self.name} 正在处理: {input_text}\")\n\n        # 1. 添加用户消息到历史记录（构建消息列表）\n        messages = []\n\n        # 2. 如果启用工具调用，尝试调用工具（添加系统消息，可能包含工具信息）\n        enhanced_system_prompt = self._get_enhanced_system_prompt()\n        messages.append({\"role\": \"system\", \"content\": enhanced_system_prompt})\n\n        # 3. 添加用户消息（添加历史消息）\n        for msg in self.get_history():\n            messages.append({\"role\": msg.role, \"content\": msg.content})\n\n        # 4. 添加当前用户输入消息（添加当前用户消息）\n        messages.append({\"role\": \"user\", \"content\": input_text})\n\n        # 5. 如果没有启用工具，使用简单对话逻辑（直接调用 LLM 生成响应）\n        if not self.enable_tool_calling:\n            response = self.llm.invoke(messages, **kwargs)\n            self.add_message(Message(input_text, \"user\"))\n            self.add_message(Message(response, \"assistant\"))\n            print(f\"✅ {self.name} 响应完成\")\n            return response\n\n        # 6. 支持多轮工具调用逻辑（迭代调用工具，直到达到最大迭代次数或没有更多工具调用）\n        return self._run_with_tool_calling(messages, input_text, max_tool_iterations, **kwargs)\n\n    def _get_enhanced_system_prompt(self) -> str:\n        \"\"\"\n        获取增强的系统提示词，包含工具信息\n        \"\"\"\n        base_prompt = self.system_prompt or \"你是一个有用的AI助手。\"\n\n        if not self.enable_tool_calling or not self.tool_registry:\n            return base_prompt\n\n        # 获取工具信息\n        tools_description = self.tool_registry.get_tools_description()\n        if not tools_description or tools_description == \"暂无可用工具\":\n            return base_prompt\n\n        tools_section = \"\\n\\n## 可用工具:\\n\"\n        tools_section += \"你可以使用以下工具来帮忙回答问题:\\n\"\n        tools_section += tools_description + '\\n'\n\n        tools_section += \"\\n## 工具调用格式\\n\"\n        tools_section += \"当你需要调用工具时，请使用以下格式:\\n\"\n        tools_section += \"`[TOOL_CALL:{tool_name}:{parameters}]`\\n\"\n        tools_section += \"例如:`[TOOL_CALL:search:Python编程]` 或 `[TOOL_CALL:memory:recall=用户信息]`\\n\\n\"\n        tools_section += \"工具调用结果会自动插入到对话中，然后你可以基于结果继续回答。\\n\"\n\n        return base_prompt + tools_section\n\n    def _run_with_tool_calling(self, messages: list, input_text: str, max_tool_iterations: int, **kwargs) -> str:\n        \"\"\"\"支持工具调用的运行逻辑\"\"\"\n        current_iteration = 0\n        final_response = \"\"\n\n        while current_iteration < max_tool_iterations:\n            # 1. 调用 LLM 获取响应\n            response = self.llm.invoke(messages, **kwargs)\n\n            # 2. 检查是否有工具可用\n            tool_calls = self._parse_tool_calls(response)\n\n            if tool_calls:\n                print(f\"🔧 检测到 {len(tool_calls)} 个工具调用\")\n                # 执行所有工具调用并收集结果\n                tool_results = []\n                clean_response = response\n\n                for call in tool_calls:\n                    result = self._execute_tool_call(call['tool_name'], call['parameters'])\n                    tool_results.append(result)\n                    # 从响应中移除工具调用标记\n                    clean_response = clean_response.replace(call['original'], \"\")\n\n                # 3. 构建包含工具结果的消息\n                messages.append({\"role\" : \"assistant\", \"content\":clean_response})\n\n                # 4. 添加工具调用结果\n                tool_results_text = '\\n\\n'.join(tool_results)\n                messages.append({\"role\": \"user\", \"content\": f\"工具执行结果:\\n{tool_results_text}\\n\\n请基于这些结果给出完整的回答。\"})\n\n                current_iteration += 1\n                continue\n\n            # 5. 没有工具调用，这是最终回答\n            final_response = response\n            break\n\n        # 如果超过最大迭代次数，获取最后一次回答\n        if current_iteration >= max_tool_iterations and not final_response:\n            final_response = self.llm.invoke(messages, **kwargs)\n\n        # 6. 添加用户消息和最终响应到历史记录\n        self.add_message(Message(input_text, \"user\"))\n        self.add_message(Message(final_response, \"assistant\"))\n        print(f\"✅ {self.name} 响应完成\")\n\n        return final_response\n\n    def _parse_tool_calls(self, text: str) -> list:\n        \"\"\"\"解析文本中的工具调用\"\"\"\n        pattern = r'\\[TOOL_CALL:([^:]+):([^\\]]+)\\]'\n        matches = re.findall(pattern, text)\n\n        tool_calls = []\n        for tool_name, parameters in matches:\n            tool_calls.append({\n                \"tool_name\": tool_name.strip(),\n                \"parameters\": parameters.strip(),\n                \"original\": f\"[TOOL_CALL:{tool_name}:{parameters}]\"\n            })\n        return tool_calls\n\n    def _execute_tool_call(self, tool_name: str, parameters: str) -> str:\n        \"\"\"\"执行工具调用\"\"\"\n        if not self.tool_registry:\n            return f\"❌ 错误：未配置工具注册表\"\n\n        try:\n            # 智能参数解析\n            if tool_name == \"calculator\":\n                # 计算器工具直接传入表达式\n                result = self.tool_registry.execute_tool(tool_name, parameters)\n            else:\n                # 其他工具使用智能参数解析\n                param_dict = self._parse_tool_parameters(tool_name, parameters)\n                tool = self.tool_registry.get_tool(tool_name)\n                if not tool:\n                    return f\"❌ 错误：未找到工具 {tool_name}\"\n                result = tool.run(param_dict)\n\n            return f\"✅ 工具 {tool_name} 执行结果:\\n{result}\"\n        \n        except Exception as e:\n            return f\"❌ 工具调用失败: {str(e)}\"\n\n    def _parse_tool_parameters(self, tool_name: str, parameters: str) -> dict:\n        \"\"\"\"智能解析工具参数\"\"\"\n        param_dict = {}\n\n        if '=' in parameters:\n            # 格式: key=value 或 action=search,query=Python\n            if ',' in parameters:\n                # 多个参数:action=search,query=Python,limit=3\n                pairs = parameters.split(',')\n                for pair in pairs:\n                    if '=' in pair:\n                        key, value = pair.split('=', 1)\n                        param_dict[key.strip()] = value.strip()\n            else:\n                # 单个参数: key=value\n                key, value = parameters.split('=', 1)\n                param_dict[key.strip()] = value.strip()\n        else:\n            # 直接传入参数，根据工具类型智能推断\n            if tool_name == \"search\":\n                param_dict = {'query': parameters}\n            elif tool_name == \"memory\":\n                param_dict = {'action': 'search', 'query': parameters}\n            else:\n                param_dict = {'input': parameters}\n\n        return param_dict\n\n    def stream_run(self, input_text: str, **kwargs) -> Iterator[str]:\n        \"\"\"\n        自定义的流式运行方法\n        \"\"\"\n        print(f\"🌊 {self.name} 开始流式处理: {input_text}\")\n\n        messages = []\n\n        if self.system_prompt:\n            messages.append({\"role\": \"system\", \"content\": self.system_prompt})\n\n        for msg in self.get_history():\n            messages.append({\"role\": msg.role, \"content\": msg.content})\n\n        messages.append({\"role\": \"user\", \"content\": input_text})\n\n        # 流式调用LLM\n        full_response = \"\"\n        print(\"📝 实时响应: \", end=\"\")\n        for chunk in self.llm.stream_invoke(messages, **kwargs):\n            full_response += chunk\n            yield chunk\n\n        print() #换行\n\n        # 保存完整对话到历史记录\n        self.add_message(Message(input_text, \"user\"))\n        self.add_message(Message(full_response, \"assistant\"))\n        print(f\"✅ {self.name} 流式响应完成\")\n\n    def add_tool(self, tool) -> None:\n        \"\"\"添加工具到Agent（便利方法）\"\"\"\n        if not self.tool_registry:\n            from hello_agents import ToolRegistry\n            self.tool_registry = ToolRegistry()\n            self.enable_tool_calling = True\n\n        self.tool_registry.register_tool(tool)\n        print(f\"🔧 工具 '{tool.name}' 已添加\")\n\n    def has_tools(self) -> bool:\n        \"\"\"检查Agent是否有工具\"\"\"\n        return self.enable_tool_calling and self.tool_registry is not None\n\n    def remove_tool(self, tool_name: str) -> bool:\n        \"\"\"从Agent中移除工具\"\"\"\n        if self.tool_registry:\n            self.tool_registry.unregister_tool(tool_name)\n            return True\n        return False\n\n    def list_tools(self) -> list:\n        \"\"\"列出Agent的所有工具\"\"\"\n        if self.tool_registry:\n            return self.tool_registry.list_tools()\n        return []\n",
+    "code": "from typing import Optional, Iterator\nfrom core.agent import Agent\nfrom core.config import Config\nfrom core.message import Message\nfrom core.llm import LLM\nfrom tools.registry import ToolRegistry\nimport re\n\nclass SimpleAgent(Agent):\n    \"\"\"\n    简单对话Agent\n    基于本地Agent基类实现对话、历史管理与工具调用\n    \"\"\"\n\n    def __init__(\n        self,\n        name: str,\n        llm: LLM,\n        system_prompt: Optional[str] = None,\n        config: Optional[Config] = None,\n        tool_registry: Optional['ToolRegistry'] = None,\n        enable_tool_calling: bool = True\n    ):\n        super().__init__(name, llm, system_prompt, config)\n        self.tool_registry = tool_registry\n        self.enable_tool_calling = enable_tool_calling and tool_registry is not None\n        print(f\"✅ {name} 初始化完成，工具调用: {'启用' if self.enable_tool_calling else '禁用'}\")\n\n    def run(self, input_text: str, max_tool_iterations: int = 3, **kwargs) -> str:\n        \"\"\"\n        重写的运行方法 - 实现简单对话逻辑，支持可选工具调用\n        \"\"\"\n        print(f\"🤖 {self.name} 正在处理: {input_text}\")\n\n        # 1. 添加用户消息到历史记录（构建消息列表）\n        messages = []\n\n        # 2. 如果启用工具调用，尝试调用工具（添加系统消息，可能包含工具信息）\n        enhanced_system_prompt = self._get_enhanced_system_prompt()\n        messages.append({\"role\": \"system\", \"content\": enhanced_system_prompt})\n\n        # 3. 添加用户消息（添加历史消息）\n        for msg in self.get_history():\n            messages.append({\"role\": msg.role, \"content\": msg.content})\n\n        # 4. 添加当前用户输入消息（添加当前用户消息）\n        messages.append({\"role\": \"user\", \"content\": input_text})\n\n        # 5. 如果没有启用工具，使用简单对话逻辑（直接调用 LLM 生成响应）\n        if not self.enable_tool_calling:\n            response = self.llm.invoke(messages, **kwargs)\n            self.add_message(Message(input_text, \"user\"))\n            self.add_message(Message(response, \"assistant\"))\n            print(f\"✅ {self.name} 响应完成\")\n            return response\n\n        # 6. 支持多轮工具调用逻辑（迭代调用工具，直到达到最大迭代次数或没有更多工具调用）\n        return self._run_with_tool_calling(messages, input_text, max_tool_iterations, **kwargs)\n\n    def _get_enhanced_system_prompt(self) -> str:\n        \"\"\"\n        获取增强的系统提示词，包含工具信息\n        \"\"\"\n        base_prompt = self.system_prompt or \"你是一个有用的AI助手。\"\n\n        if not self.enable_tool_calling or not self.tool_registry:\n            return base_prompt\n\n        # 获取工具信息\n        tools_description = self.tool_registry.get_tools_description()\n        if not tools_description or tools_description == \"暂无可用工具\":\n            return base_prompt\n\n        tools_section = \"\\n\\n## 可用工具:\\n\"\n        tools_section += \"你可以使用以下工具来帮忙回答问题:\\n\"\n        tools_section += tools_description + '\\n'\n\n        tools_section += \"\\n## 工具调用格式\\n\"\n        tools_section += \"当你需要调用工具时，请使用以下格式:\\n\"\n        tools_section += \"`[TOOL_CALL:{tool_name}:{parameters}]`\\n\"\n        tools_section += \"例如:`[TOOL_CALL:search:Python编程]` 或 `[TOOL_CALL:memory:recall=用户信息]`\\n\\n\"\n        tools_section += \"工具调用结果会自动插入到对话中，然后你可以基于结果继续回答。\\n\"\n\n        return base_prompt + tools_section\n\n    def _run_with_tool_calling(self, messages: list, input_text: str, max_tool_iterations: int, **kwargs) -> str:\n        \"\"\"\"支持工具调用的运行逻辑\"\"\"\n        current_iteration = 0\n        final_response = \"\"\n\n        while current_iteration < max_tool_iterations:\n            # 1. 调用 LLM 获取响应\n            response = self.llm.invoke(messages, **kwargs)\n\n            # 2. 检查是否有工具可用\n            tool_calls = self._parse_tool_calls(response)\n\n            if tool_calls:\n                print(f\"🔧 检测到 {len(tool_calls)} 个工具调用\")\n                # 执行所有工具调用并收集结果\n                tool_results = []\n                clean_response = response\n\n                for call in tool_calls:\n                    result = self._execute_tool_call(call['tool_name'], call['parameters'])\n                    tool_results.append(result)\n                    # 从响应中移除工具调用标记\n                    clean_response = clean_response.replace(call['original'], \"\")\n\n                # 3. 构建包含工具结果的消息\n                messages.append({\"role\" : \"assistant\", \"content\":clean_response})\n\n                # 4. 添加工具调用结果\n                tool_results_text = '\\n\\n'.join(tool_results)\n                messages.append({\"role\": \"user\", \"content\": f\"工具执行结果:\\n{tool_results_text}\\n\\n请基于这些结果给出完整的回答。\"})\n\n                current_iteration += 1\n                continue\n\n            # 5. 没有工具调用，这是最终回答\n            final_response = response\n            break\n\n        # 如果超过最大迭代次数，获取最后一次回答\n        if current_iteration >= max_tool_iterations and not final_response:\n            final_response = self.llm.invoke(messages, **kwargs)\n\n        # 6. 添加用户消息和最终响应到历史记录\n        self.add_message(Message(input_text, \"user\"))\n        self.add_message(Message(final_response, \"assistant\"))\n        print(f\"✅ {self.name} 响应完成\")\n\n        return final_response\n\n    def _parse_tool_calls(self, text: str) -> list:\n        \"\"\"\"解析文本中的工具调用\"\"\"\n        pattern = r'\\[TOOL_CALL:([^:]+):([^\\]]+)\\]'\n        matches = re.findall(pattern, text)\n\n        tool_calls = []\n        for tool_name, parameters in matches:\n            tool_calls.append({\n                \"tool_name\": tool_name.strip(),\n                \"parameters\": parameters.strip(),\n                \"original\": f\"[TOOL_CALL:{tool_name}:{parameters}]\"\n            })\n        return tool_calls\n\n    def _execute_tool_call(self, tool_name: str, parameters: str) -> str:\n        \"\"\"\"执行工具调用\"\"\"\n        if not self.tool_registry:\n            return f\"❌ 错误：未配置工具注册表\"\n\n        try:\n            # 智能参数解析\n            if tool_name == \"calculator\":\n                # 计算器工具直接传入表达式\n                result = self.tool_registry.execute_tool(tool_name, parameters)\n            else:\n                # 其他工具使用智能参数解析\n                param_dict = self._parse_tool_parameters(tool_name, parameters)\n                tool = self.tool_registry.get_tool(tool_name)\n                if not tool:\n                    return f\"❌ 错误：未找到工具 {tool_name}\"\n                result = tool.run(param_dict)\n\n            return f\"✅ 工具 {tool_name} 执行结果:\\n{result}\"\n        \n        except Exception as e:\n            return f\"❌ 工具调用失败: {str(e)}\"\n\n    def _parse_tool_parameters(self, tool_name: str, parameters: str) -> dict:\n        \"\"\"\"智能解析工具参数\"\"\"\n        param_dict = {}\n\n        if '=' in parameters:\n            # 格式: key=value 或 action=search,query=Python\n            if ',' in parameters:\n                # 多个参数:action=search,query=Python,limit=3\n                pairs = parameters.split(',')\n                for pair in pairs:\n                    if '=' in pair:\n                        key, value = pair.split('=', 1)\n                        param_dict[key.strip()] = value.strip()\n            else:\n                # 单个参数: key=value\n                key, value = parameters.split('=', 1)\n                param_dict[key.strip()] = value.strip()\n        else:\n            # 直接传入参数，根据工具类型智能推断\n            if tool_name == \"search\":\n                param_dict = {'query': parameters}\n            elif tool_name == \"memory\":\n                param_dict = {'action': 'search', 'query': parameters}\n            else:\n                param_dict = {'input': parameters}\n\n        return param_dict\n\n    def stream_run(self, input_text: str, **kwargs) -> Iterator[str]:\n        \"\"\"\n        自定义的流式运行方法\n        \"\"\"\n        print(f\"🌊 {self.name} 开始流式处理: {input_text}\")\n\n        messages = []\n\n        if self.system_prompt:\n            messages.append({\"role\": \"system\", \"content\": self.system_prompt})\n\n        for msg in self.get_history():\n            messages.append({\"role\": msg.role, \"content\": msg.content})\n\n        messages.append({\"role\": \"user\", \"content\": input_text})\n\n        # 流式调用LLM\n        full_response = \"\"\n        print(\"📝 实时响应: \", end=\"\")\n        for chunk in self.llm.stream_invoke(messages, **kwargs):\n            full_response += chunk\n            yield chunk\n\n        print() #换行\n\n        # 保存完整对话到历史记录\n        self.add_message(Message(input_text, \"user\"))\n        self.add_message(Message(full_response, \"assistant\"))\n        print(f\"✅ {self.name} 流式响应完成\")\n\n    def add_tool(self, tool) -> None:\n        \"\"\"添加工具到Agent（便利方法）\"\"\"\n        if not self.tool_registry:\n            from tools.registry import ToolRegistry\n            self.tool_registry = ToolRegistry()\n            self.enable_tool_calling = True\n\n        self.tool_registry.register_tool(tool)\n        print(f\"🔧 工具 '{tool.name}' 已添加\")\n\n    def has_tools(self) -> bool:\n        \"\"\"检查Agent是否有工具\"\"\"\n        return self.enable_tool_calling and self.tool_registry is not None\n\n    def remove_tool(self, tool_name: str) -> bool:\n        \"\"\"从Agent中移除工具\"\"\"\n        if self.tool_registry:\n            self.tool_registry.unregister_tool(tool_name)\n            return True\n        return False\n\n    def list_tools(self) -> list:\n        \"\"\"列出Agent的所有工具\"\"\"\n        if self.tool_registry:\n            return self.tool_registry.list_tools()\n        return []\n",
     "symbols": {
       "SimpleAgent": {
-        "start": 5,
-        "end": 251,
-        "doc": "重写的简单对话Agent\n展示如何基于框架基类构建自定义Agent"
+        "start": 9,
+        "end": 255,
+        "doc": "简单对话Agent\n基于本地Agent基类实现对话、历史管理与工具调用"
       },
       "SimpleAgent.__init__": {
-        "start": 11,
-        "end": 23,
+        "start": 15,
+        "end": 27,
         "doc": ""
       },
       "SimpleAgent.run": {
-        "start": 25,
-        "end": 54,
+        "start": 29,
+        "end": 58,
         "doc": "重写的运行方法 - 实现简单对话逻辑，支持可选工具调用"
       },
       "SimpleAgent._get_enhanced_system_prompt": {
-        "start": 56,
-        "end": 80,
+        "start": 60,
+        "end": 84,
         "doc": "获取增强的系统提示词，包含工具信息"
       },
       "SimpleAgent._run_with_tool_calling": {
-        "start": 82,
-        "end": 129,
+        "start": 86,
+        "end": 133,
         "doc": "\"支持工具调用的运行逻辑"
       },
       "SimpleAgent._parse_tool_calls": {
-        "start": 131,
-        "end": 143,
+        "start": 135,
+        "end": 147,
         "doc": "\"解析文本中的工具调用"
       },
       "SimpleAgent._execute_tool_call": {
-        "start": 145,
-        "end": 166,
+        "start": 149,
+        "end": 170,
         "doc": "\"执行工具调用"
       },
       "SimpleAgent._parse_tool_parameters": {
-        "start": 168,
-        "end": 194,
+        "start": 172,
+        "end": 198,
         "doc": "\"智能解析工具参数"
       },
       "SimpleAgent.stream_run": {
-        "start": 196,
-        "end": 224,
+        "start": 200,
+        "end": 228,
         "doc": "自定义的流式运行方法"
       },
       "SimpleAgent.add_tool": {
-        "start": 226,
-        "end": 234,
+        "start": 230,
+        "end": 238,
         "doc": "添加工具到Agent（便利方法）"
       },
       "SimpleAgent.has_tools": {
-        "start": 236,
-        "end": 238,
+        "start": 240,
+        "end": 242,
         "doc": "检查Agent是否有工具"
       },
       "SimpleAgent.remove_tool": {
-        "start": 240,
-        "end": 245,
+        "start": 244,
+        "end": 249,
         "doc": "从Agent中移除工具"
       },
       "SimpleAgent.list_tools": {
-        "start": 247,
-        "end": 251,
+        "start": 251,
+        "end": 255,
         "doc": "列出Agent的所有工具"
       }
     },
     "calls": [
       {
-        "line": 35,
+        "line": 9,
+        "start": 18,
+        "end": 23,
+        "file": "core/agent.py",
+        "symbol": "Agent"
+      },
+      {
+        "line": 24,
+        "start": 8,
+        "end": 24,
+        "file": "core/agent.py",
+        "symbol": "Agent.__init__"
+      },
+      {
+        "line": 39,
         "start": 33,
         "end": 65,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent._get_enhanced_system_prompt"
       },
       {
-        "line": 54,
+        "line": 43,
+        "start": 19,
+        "end": 35,
+        "file": "core/agent.py",
+        "symbol": "Agent.get_history"
+      },
+      {
+        "line": 51,
+        "start": 23,
+        "end": 38,
+        "file": "core/llm.py",
+        "symbol": "LLM.invoke"
+      },
+      {
+        "line": 52,
+        "start": 12,
+        "end": 28,
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message"
+      },
+      {
+        "line": 52,
+        "start": 29,
+        "end": 36,
+        "file": "core/message.py",
+        "symbol": "Message.__init__"
+      },
+      {
+        "line": 53,
+        "start": 12,
+        "end": 28,
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message"
+      },
+      {
+        "line": 53,
+        "start": 29,
+        "end": 36,
+        "file": "core/message.py",
+        "symbol": "Message.__init__"
+      },
+      {
+        "line": 58,
         "start": 15,
         "end": 42,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent._run_with_tool_calling"
       },
       {
-        "line": 92,
+        "line": 70,
+        "start": 28,
+        "end": 68,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tools_description"
+      },
+      {
+        "line": 93,
+        "start": 23,
+        "end": 38,
+        "file": "core/llm.py",
+        "symbol": "LLM.invoke"
+      },
+      {
+        "line": 96,
         "start": 25,
         "end": 47,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent._parse_tool_calls"
       },
       {
-        "line": 157,
+        "line": 105,
+        "start": 29,
+        "end": 52,
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent._execute_tool_call"
+      },
+      {
+        "line": 126,
+        "start": 29,
+        "end": 44,
+        "file": "core/llm.py",
+        "symbol": "LLM.invoke"
+      },
+      {
+        "line": 129,
+        "start": 8,
+        "end": 24,
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message"
+      },
+      {
+        "line": 129,
+        "start": 25,
+        "end": 32,
+        "file": "core/message.py",
+        "symbol": "Message.__init__"
+      },
+      {
+        "line": 130,
+        "start": 8,
+        "end": 24,
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message"
+      },
+      {
+        "line": 130,
+        "start": 25,
+        "end": 32,
+        "file": "core/message.py",
+        "symbol": "Message.__init__"
+      },
+      {
+        "line": 158,
+        "start": 25,
+        "end": 56,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 161,
         "start": 29,
         "end": 56,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent._parse_tool_parameters"
       },
       {
+        "line": 162,
+        "start": 23,
+        "end": 50,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tool"
+      },
+      {
+        "line": 211,
+        "start": 19,
+        "end": 35,
+        "file": "core/agent.py",
+        "symbol": "Agent.get_history"
+      },
+      {
+        "line": 219,
+        "start": 21,
+        "end": 43,
+        "file": "core/llm.py",
+        "symbol": "LLM.stream_invoke"
+      },
+      {
+        "line": 226,
+        "start": 8,
+        "end": 24,
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message"
+      },
+      {
+        "line": 226,
+        "start": 25,
+        "end": 32,
+        "file": "core/message.py",
+        "symbol": "Message.__init__"
+      },
+      {
+        "line": 227,
+        "start": 8,
+        "end": 24,
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message"
+      },
+      {
+        "line": 227,
+        "start": 25,
+        "end": 32,
+        "file": "core/message.py",
+        "symbol": "Message.__init__"
+      },
+      {
+        "line": 234,
+        "start": 33,
+        "end": 45,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 237,
+        "start": 8,
+        "end": 40,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_tool"
+      },
+      {
+        "line": 247,
+        "start": 12,
+        "end": 46,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.unregister_tool"
+      },
+      {
+        "line": 254,
+        "start": 19,
+        "end": 48,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.list_tools"
+      }
+    ],
+    "origin": "project"
+  },
+  "agents/react_agent.py": {
+    "code": "# react_agent.py\nimport re\nfrom typing import Optional, List, Tuple\nfrom core.agent import Agent\nfrom core.config import Config\nfrom core.llm import LLM\nfrom core.message import Message\nfrom tools.registry import ToolRegistry\n\nDEFAULT_REACT_PROMPT = \"\"\"你是一个具备推理和行动能力的AI助手。你可以通过思考分析问题，然后调用合适的工具来获取信息，最终给出准确的答案。\n\n## 可用工具\n{tools}\n\n## 工作流程\n请严格按照以下格式进行回应，每次只能执行一个步骤:\n\nThought: 分析当前问题，思考需要什么信息或采取什么行动。\nAction: 选择一个行动，格式必须是以下之一:\n- `{{tool_name}}[{{tool_input}}]` - 调用指定工具\n- `Finish[最终答案]` - 当你有足够信息给出最终答案时\n\n## 重要提醒\n1. 每次回应必须包含Thought和Action两部分\n2. 工具调用的格式必须严格遵循:工具名[参数]\n3. 只有当你确信有足够信息回答问题时，才使用Finish\n4. 如果工具返回的信息不够，继续使用其他工具或相同工具的不同参数\n\n## 当前任务\n**Question:** {question}\n\n## 执行历史\n{history}\n\n现在开始你的推理和行动:\n\"\"\"\n\n\nclass ReActAgent(Agent):\n    \"\"\"\n    本地ReAct Agent - 推理与行动结合的智能体\n    \"\"\"\n\n    def __init__(\n        self,\n        name: str,                              #Agent的名称\n        llm: LLM,                               # 本地LLM客户端实例，负责与大模型通信\n        tool_registry: ToolRegistry,            # ToolRegistry的实例，用于管理和执行Agent可用的工具\n        system_prompt: Optional[str] = None,    # 系统提示词\n        config: Optional[Config] = None,        # 本地Agent配置对象\n        max_steps: int = 5,                     # ReAct循环的最大执行步数\n        custom_prompt: Optional[str] = None     # 自定义的提示词模板，用于替换默认的ReAct提示词。\n    ):\n        super().__init__(name, llm, system_prompt, config)\n        self.tool_registry = tool_registry\n        self.max_steps = max_steps\n        self.current_history: List[str] = []\n        self.prompt_template = custom_prompt if custom_prompt else DEFAULT_REACT_PROMPT\n        print(f\"✅ {name} 初始化完成，最大步数: {max_steps}\")\n\n    def run(self, input_text: str, **kwargs) -> str:\n        \"\"\"运行ReAct Agent\"\"\"\n        self.current_history = []\n        current_step = 0\n\n        print(f\"\\n🤖 {self.name} 开始处理问题: {input_text}\")\n\n        while current_step < self.max_steps:\n            current_step += 1\n            print(f\"\\n--- 第 {current_step} 步 ---\")\n\n            # 1. 构建提示词\n            tools_desc = self.tool_registry.get_tools_description()\n            history_str = \"\\n\".join(self.current_history)\n            prompt = self.prompt_template.format(\n                tools=tools_desc,\n                question=input_text,\n                history=history_str\n            )\n\n            # 2. 调用LLM\n            messages = [{\"role\": \"user\", \"content\": prompt}]\n            response_text = self.llm.invoke(messages, **kwargs)\n\n            # 3. 解析输出\n            thought, action = self._parse_output(response_text)\n\n            # 4. 检查完成条件\n            if action and action.startswith(\"Finish\"):\n                final_answer = self._parse_action_input(action)\n                self.add_message(Message(input_text, \"user\"))\n                self.add_message(Message(final_answer, \"assistant\"))\n                return final_answer\n\n            # 5. 执行工具调用\n            if action:\n                tool_name, tool_input = self._parse_action(action)\n                observation = self.tool_registry.execute_tool(tool_name, tool_input)\n                self.current_history.append(f\"Action: {action}\")\n                self.current_history.append(f\"Observation: {observation}\")\n\n        # 达到最大步数\n        final_answer = \"抱歉，我无法在限定步数内完成这个任务。\"\n        self.add_message(Message(input_text, \"user\"))\n        self.add_message(Message(final_answer, \"assistant\"))\n        return final_answer\n\n    def _parse_output(self, text: str) -> Tuple[Optional[str], Optional[str]]:\n        \"\"\"从模型文本中分别提取Thought和Action所在行\"\"\"\n        thought_match = re.search(r\"Thought: (.*)\", text)\n        action_match = re.search(r\"Action: (.*)\", text)\n\n        thought = thought_match.group(1).strip() if thought_match else None\n        action = action_match.group(1).strip() if action_match else None\n        return thought, action\n\n    def _parse_action(self, action_text: str) -> Tuple[Optional[str], Optional[str]]:\n        \"\"\"把工具名[输入]拆成名称和输入，无法匹配时返回两个None\"\"\"\n        match = re.match(r\"(\\w+)\\[(.*)\\]\", action_text)\n        if match:\n            return match.group(1), match.group(2)\n        return None, None\n\n    def _parse_action_input(self, action_text: str) -> str:\n        \"\"\"提取方括号内的内容，用于读取Finish[最终答案]\"\"\"\n        # 复用行动解析，保证工具输入和最终答案使用同一种括号格式。\n        _, action_input = self._parse_action(action_text)\n        return action_input if action_input is not None else \"\"\n",
+    "symbols": {
+      "ReActAgent": {
+        "start": 39,
+        "end": 128,
+        "doc": "本地ReAct Agent - 推理与行动结合的智能体"
+      },
+      "ReActAgent.__init__": {
+        "start": 44,
+        "end": 59,
+        "doc": ""
+      },
+      "ReActAgent.run": {
+        "start": 61,
+        "end": 106,
+        "doc": "运行ReAct Agent"
+      },
+      "ReActAgent._parse_output": {
+        "start": 108,
+        "end": 115,
+        "doc": "从模型文本中分别提取Thought和Action所在行"
+      },
+      "ReActAgent._parse_action": {
+        "start": 117,
+        "end": 122,
+        "doc": "把工具名[输入]拆成名称和输入，无法匹配时返回两个None"
+      },
+      "ReActAgent._parse_action_input": {
+        "start": 124,
+        "end": 128,
+        "doc": "提取方括号内的内容，用于读取Finish[最终答案]"
+      },
+      "DEFAULT_REACT_PROMPT": {
+        "start": 10,
+        "end": 36,
+        "doc": "ReAct 默认提示词模板"
+      }
+    },
+    "calls": [
+      {
+        "line": 39,
+        "start": 17,
+        "end": 22,
+        "file": "core/agent.py",
+        "symbol": "Agent"
+      },
+      {
+        "line": 54,
+        "start": 8,
+        "end": 24,
+        "file": "core/agent.py",
+        "symbol": "Agent.__init__"
+      },
+      {
+        "line": 58,
+        "start": 67,
+        "end": 87,
+        "file": "agents/react_agent.py",
+        "symbol": "DEFAULT_REACT_PROMPT"
+      },
+      {
+        "line": 73,
+        "start": 25,
+        "end": 65,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tools_description"
+      },
+      {
+        "line": 83,
+        "start": 28,
+        "end": 43,
+        "file": "core/llm.py",
+        "symbol": "LLM.invoke"
+      },
+      {
+        "line": 86,
+        "start": 30,
+        "end": 48,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_output"
+      },
+      {
+        "line": 90,
+        "start": 31,
+        "end": 55,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action_input"
+      },
+      {
+        "line": 91,
+        "start": 16,
+        "end": 32,
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message"
+      },
+      {
+        "line": 91,
+        "start": 33,
+        "end": 40,
+        "file": "core/message.py",
+        "symbol": "Message.__init__"
+      },
+      {
+        "line": 92,
+        "start": 16,
+        "end": 32,
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message"
+      },
+      {
+        "line": 92,
+        "start": 33,
+        "end": 40,
+        "file": "core/message.py",
+        "symbol": "Message.__init__"
+      },
+      {
+        "line": 97,
+        "start": 40,
+        "end": 58,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action"
+      },
+      {
+        "line": 98,
+        "start": 30,
+        "end": 61,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 104,
+        "start": 8,
+        "end": 24,
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message"
+      },
+      {
+        "line": 104,
+        "start": 25,
+        "end": 32,
+        "file": "core/message.py",
+        "symbol": "Message.__init__"
+      },
+      {
+        "line": 105,
+        "start": 8,
+        "end": 24,
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message"
+      },
+      {
+        "line": 105,
+        "start": 25,
+        "end": 32,
+        "file": "core/message.py",
+        "symbol": "Message.__init__"
+      },
+      {
+        "line": 127,
+        "start": 26,
+        "end": 44,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action"
+      }
+    ],
+    "origin": "project"
+  },
+  "agents/reflection_agent.py": {
+    "code": "# reflection_agent.py\nfrom typing import List, Dict, Any, Optional\n\nDEFAULT_PROMPTS = {\n    \"initial\": \"\"\"\n请根据以下要求完成任务:\n\n任务: {task}\n\n请提供一个完整、准确的回答。\n\"\"\",\n    \"reflect\": \"\"\"\n请仔细审查以下回答，并找出可能的问题或改进空间:\n\n# 原始任务:\n{task}\n\n# 当前回答:\n{content}\n\n请分析这个回答的质量，指出不足之处，并提出具体的改进建议。\n如果回答已经满足要求，请仅输出\"无需改进\"，不要添加标点、解释或其他文字。\n否则请指出具体问题和改进建议。\n\"\"\",\n    \"refine\": \"\"\"\n请根据反馈意见改进你的回答:\n\n# 原始任务:\n{task}\n\n# 上一轮回答:\n{last_attempt}\n\n# 反馈意见:\n{feedback}\n\n请提供一个改进后的回答。\n\"\"\"\n}\n\nclass Memory:\n    \"\"\"\n    一个简单的短期记忆模块，用于存储智能体的行动与反思轨迹。\n    \"\"\"\n\n    def __init__(self):\n        \"\"\"\n        初始化一个空列表来存储所有记录。\n        \"\"\"\n        self.records: List[Dict[str, Any]] = []\n\n    def add_record(self, record_type: str, content: str):\n        \"\"\"\n        向记忆中添加一条新记录。\n\n        参数:\n        - record_type (str): 记录的类型 ('execution' 或 'reflection')。\n        - content (str): 记录的具体内容 (例如，生成的代码或反思的反馈)。\n        \"\"\"\n        record = {\"type\": record_type, \"content\": content}\n        self.records.append(record)\n        print(f\"📝 记忆已更新，新增一条 '{record_type}' 记录。\")\n\n    def get_trajectory(self) -> str:\n        \"\"\"\n        将所有记忆记录格式化为一个连贯的字符串文本，用于构建提示词。\n        \"\"\"\n        trajectory_parts = []\n        for record in self.records:\n            if record['type'] == 'execution':\n                trajectory_parts.append(f\"--- 上一轮尝试 (代码) ---\\n{record['content']}\")\n            elif record['type'] == 'reflection':\n                trajectory_parts.append(f\"--- 评审员反馈 ---\\n{record['content']}\")\n        \n        return \"\\n\\n\".join(trajectory_parts)\n\n    def get_last_execution(self) -> Optional[str]:\n        \"\"\"\n        获取最近一次的执行结果 (例如，最新生成的代码)。\n        如果不存在，则返回 None。\n        \"\"\"\n        for record in reversed(self.records):\n            if record['type'] == 'execution':\n                return record['content']\n        return None\n\nclass ReflectionAgent:\n    def __init__(self, name, llm, max_iterations=3, custom_prompts=None):\n        self.name = name\n        self.llm_client = llm\n        self.memory = Memory()\n        self.max_iterations = max_iterations\n        self.prompts = DEFAULT_PROMPTS.copy()\n        if custom_prompts:\n            self.prompts.update(custom_prompts)\n\n    def run(self, task: str):\n        self.memory = Memory()\n        print(f\"\\n--- 开始处理任务 ---\\n任务: {task}\")\n\n        # --- 1. 初始执行 ---\n        print(\"\\n--- 正在进行初始尝试 ---\")\n        initial_prompt = self.prompts[\"initial\"].format(task=task)\n        initial_code = self._get_llm_response(initial_prompt)\n        self.memory.add_record(\"execution\", initial_code)\n\n        # --- 2. 迭代循环:反思与优化 ---\n        for i in range(self.max_iterations):\n            print(f\"\\n--- 第 {i+1}/{self.max_iterations} 轮迭代 ---\")\n\n            # a. 反思\n            print(\"\\n-> 正在进行反思...\")\n            last_code = self.memory.get_last_execution()\n            reflect_prompt = self.prompts[\"reflect\"].format(task=task, content=last_code)\n            feedback = self._get_llm_response(reflect_prompt)\n            self.memory.add_record(\"reflection\", feedback)\n\n            # b. 仅在反馈完整匹配停止用语时结束，避免否定句中的相同文字导致误停\n            if feedback.strip() == \"无需改进\":\n                print(\"\\n✅ 反思认为代码已无需改进，任务完成。\")\n                break\n\n            # c. 优化\n            print(\"\\n-> 正在进行优化...\")\n            refine_prompt = self.prompts[\"refine\"].format(\n                task=task,\n                last_attempt=last_code,\n                feedback=feedback\n            )\n            refined_code = self._get_llm_response(refine_prompt)\n            self.memory.add_record(\"execution\", refined_code)\n        \n        final_code = self.memory.get_last_execution()\n        print(f\"\\n--- 任务完成 ---\\n最终生成的代码:\\n```python\\n{final_code}\\n```\")\n        return final_code\n\n    def _get_llm_response(self, prompt: str) -> str:\n        \"\"\"一个辅助方法，用于调用LLM并获取完整的流式响应。\"\"\"\n        messages = [{\"role\": \"user\", \"content\": prompt}]\n        response_text = \"\"\n        for chunk in self.llm_client.think(messages=messages):\n            response_text += chunk\n        return response_text\n",
+    "symbols": {
+      "Memory": {
+        "start": 41,
+        "end": 85,
+        "doc": "一个简单的短期记忆模块，用于存储智能体的行动与反思轨迹。"
+      },
+      "Memory.__init__": {
+        "start": 46,
+        "end": 50,
+        "doc": "初始化一个空列表来存储所有记录。"
+      },
+      "Memory.add_record": {
+        "start": 52,
+        "end": 62,
+        "doc": "向记忆中添加一条新记录。\n\n参数:\n- record_type (str): 记录的类型 ('execution' 或 'reflection')。\n- content (str): 记录的具体内容 (例如，生成的代码或反思的反馈)。"
+      },
+      "Memory.get_trajectory": {
+        "start": 64,
+        "end": 75,
+        "doc": "将所有记忆记录格式化为一个连贯的字符串文本，用于构建提示词。"
+      },
+      "Memory.get_last_execution": {
+        "start": 77,
+        "end": 85,
+        "doc": "获取最近一次的执行结果 (例如，最新生成的代码)。\n如果不存在，则返回 None。"
+      },
+      "ReflectionAgent": {
+        "start": 87,
+        "end": 143,
+        "doc": ""
+      },
+      "ReflectionAgent.__init__": {
+        "start": 88,
+        "end": 95,
+        "doc": ""
+      },
+      "ReflectionAgent.run": {
+        "start": 97,
+        "end": 135,
+        "doc": ""
+      },
+      "ReflectionAgent._get_llm_response": {
+        "start": 137,
+        "end": 143,
+        "doc": "一个辅助方法，用于调用LLM并获取完整的流式响应。"
+      }
+    },
+    "calls": [
+      {
+        "line": 91,
+        "start": 22,
+        "end": 28,
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.__init__"
+      },
+      {
+        "line": 98,
+        "start": 22,
+        "end": 28,
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.__init__"
+      },
+      {
+        "line": 104,
+        "start": 23,
+        "end": 45,
+        "file": "agents/reflection_agent.py",
+        "symbol": "ReflectionAgent._get_llm_response"
+      },
+      {
+        "line": 105,
+        "start": 8,
+        "end": 30,
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.add_record"
+      },
+      {
+        "line": 113,
+        "start": 24,
+        "end": 54,
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.get_last_execution"
+      },
+      {
+        "line": 115,
+        "start": 23,
+        "end": 45,
+        "file": "agents/reflection_agent.py",
+        "symbol": "ReflectionAgent._get_llm_response"
+      },
+      {
+        "line": 116,
+        "start": 12,
+        "end": 34,
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.add_record"
+      },
+      {
+        "line": 130,
+        "start": 27,
+        "end": 49,
+        "file": "agents/reflection_agent.py",
+        "symbol": "ReflectionAgent._get_llm_response"
+      },
+      {
+        "line": 131,
+        "start": 12,
+        "end": 34,
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.add_record"
+      },
+      {
+        "line": 133,
+        "start": 21,
+        "end": 51,
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.get_last_execution"
+      },
+      {
+        "line": 141,
+        "start": 21,
+        "end": 42,
+        "file": "core/llm.py",
+        "symbol": "LLM.think"
+      }
+    ],
+    "origin": "project"
+  },
+  "agents/plan_solve_agent.py": {
+    "code": "import ast\n\n# 默认规划器提示词模板\nDEFAULT_PLANNER_PROMPT = \"\"\"\n你是一个顶级的AI规划专家。你的任务是将用户提出的复杂问题分解成一个由多个简单步骤组成的行动计划。\n请确保计划中的每个步骤都是一个独立的、可执行的子任务，并且严格按照逻辑顺序排列。\n你的输出必须是一个Python列表，其中每个元素都是一个描述子任务的字符串。\n\n问题: {question}\n\n请严格按照以下格式输出你的计划:\n```python\n[\"步骤1\", \"步骤2\", \"步骤3\", ...]\n```\n\"\"\"\n\n# 默认执行器提示词模板\nDEFAULT_EXECUTOR_PROMPT = \"\"\"\n你是一位顶级的AI执行专家。你的任务是严格按照给定的计划，一步步地解决问题。\n你将收到原始问题、完整的计划、以及到目前为止已经完成的步骤和结果。\n请你专注于解决\"当前步骤\"，并仅输出该步骤的最终答案，不要输出任何额外的解释或对话。\n\n# 原始问题:\n{question}\n\n# 完整计划:\n{plan}\n\n# 历史步骤与结果:\n{history}\n\n# 当前步骤:\n{current_step}\n\n请仅输出针对\"当前步骤\"的回答:\n\"\"\"\n\n\nclass Planner:\n    def __init__(self, llm_client):\n        self.llm_client = llm_client\n\n    def plan(self, question: str) -> list[str]:\n        \"\"\"\n        根据用户问题生成一个行动计划。\n        \"\"\"\n        prompt = DEFAULT_PLANNER_PROMPT.format(question=question)\n        \n        # 为了生成计划，我们构建一个简单的消息列表\n        messages = [{\"role\": \"user\", \"content\": prompt}]\n        \n        print(\"--- 正在生成计划 ---\")\n        # 使用流式输出来获取完整的计划\n        response_text = \"\"\n        for chunk in self.llm_client.think(messages=messages):\n            response_text += chunk\n        \n        print(f\"✅ 计划已生成:\\n{response_text}\")\n        \n        # 解析LLM输出的列表字符串\n        try:\n            # 找到```python和```之间的内容\n            plan_str = response_text.split(\"```python\")[1].split(\"```\")[0].strip()\n            # 使用ast.literal_eval来安全地执行字符串，将其转换为Python列表\n            plan = ast.literal_eval(plan_str)\n            return plan if isinstance(plan, list) else []\n        except (ValueError, SyntaxError, IndexError) as e:\n            print(f\"❌ 解析计划时出错: {e}\")\n            print(f\"原始响应: {response_text}\")\n            return []\n        except Exception as e:\n            print(f\"❌ 解析计划时发生未知错误: {e}\")\n            return []\n\n\nclass Executor:\n    def __init__(self, llm_client):\n        self.llm_client = llm_client\n\n    def execute(self, question: str, plan: list[str]) -> str:\n        \"\"\"\n        根据计划，逐步执行并解决问题。\n        \"\"\"\n        history = \"\" # 用于存储历史步骤和结果的字符串\n        \n        print(\"\\n--- 正在执行计划 ---\")\n        \n        for i, step in enumerate(plan):\n            print(f\"\\n-> 正在执行步骤 {i+1}/{len(plan)}: {step}\")\n            \n            prompt = DEFAULT_EXECUTOR_PROMPT.format(\n                question=question,\n                plan=plan,\n                history=history if history else \"无\", # 如果是第一步，则历史为空\n                current_step=step\n            )\n            \n            messages = [{\"role\": \"user\", \"content\": prompt}]\n            \n            response_text =  \"\"\n            for chunk in self.llm_client.think(messages=messages):\n                response_text += chunk\n            \n            # 更新历史记录，为下一步做准备\n            history += f\"步骤 {i+1}: {step}\\n结果: {response_text}\\n\\n\"\n            \n            print(f\"✅ 步骤 {i+1} 已完成，结果: {response_text}\")\n\n        # 循环结束后，最后一步的响应就是最终答案\n        final_answer = response_text\n        return final_answer\n\n\nclass PlanAndSolveAgent:\n    def __init__(self, llm_client):\n        \"\"\"\n        初始化智能体，同时创建规划器和执行器实例。\n        \"\"\"\n        self.llm_client = llm_client\n        self.planner = Planner(self.llm_client)\n        self.executor = Executor(self.llm_client)\n\n    def run(self, question: str):\n        \"\"\"\n        运行智能体的完整流程:先规划，后执行。\n        \"\"\"\n        print(f\"\\n--- 开始处理问题 ---\\n问题: {question}\")\n        \n        # 1. 调用规划器生成计划\n        plan = self.planner.plan(question)\n        \n        # 检查计划是否成功生成\n        if not plan:\n            print(\"\\n--- 任务终止 --- \\n无法生成有效的行动计划。\")\n            return\n\n        # 2. 调用执行器执行计划\n        final_answer = self.executor.execute(question, plan)\n        \n        print(f\"\\n--- 任务完成 ---\\n最终答案: {final_answer}\")\n        return final_answer\n",
+    "symbols": {
+      "Planner": {
+        "start": 39,
+        "end": 73,
+        "doc": ""
+      },
+      "Planner.__init__": {
+        "start": 40,
+        "end": 41,
+        "doc": ""
+      },
+      "Planner.plan": {
+        "start": 43,
+        "end": 73,
+        "doc": "根据用户问题生成一个行动计划。"
+      },
+      "Executor": {
+        "start": 76,
+        "end": 111,
+        "doc": ""
+      },
+      "Executor.__init__": {
+        "start": 77,
+        "end": 78,
+        "doc": ""
+      },
+      "Executor.execute": {
+        "start": 80,
+        "end": 111,
+        "doc": "根据计划，逐步执行并解决问题。"
+      },
+      "PlanAndSolveAgent": {
+        "start": 114,
+        "end": 141,
+        "doc": ""
+      },
+      "PlanAndSolveAgent.__init__": {
+        "start": 115,
+        "end": 121,
+        "doc": "初始化智能体，同时创建规划器和执行器实例。"
+      },
+      "PlanAndSolveAgent.run": {
+        "start": 123,
+        "end": 141,
+        "doc": "运行智能体的完整流程:先规划，后执行。"
+      }
+    },
+    "calls": [
+      {
+        "line": 55,
+        "start": 21,
+        "end": 42,
+        "file": "core/llm.py",
+        "symbol": "LLM.think"
+      },
+      {
         "line": 101,
-        "start": 29,
-        "end": 52,
-        "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent._execute_tool_call"
+        "start": 25,
+        "end": 46,
+        "file": "core/llm.py",
+        "symbol": "LLM.think"
+      },
+      {
+        "line": 120,
+        "start": 23,
+        "end": 30,
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "Planner.__init__"
+      },
+      {
+        "line": 121,
+        "start": 24,
+        "end": 32,
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "Executor.__init__"
+      },
+      {
+        "line": 130,
+        "start": 15,
+        "end": 32,
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "Planner.plan"
+      },
+      {
+        "line": 138,
+        "start": 23,
+        "end": 44,
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "Executor.execute"
       }
     ],
     "origin": "project"
@@ -265,12 +919,12 @@
     "origin": "project"
   },
   "tools/registry.py": {
-    "code": "from tools.base import Tool\nfrom typing import Any, Callable, Dict\n\nclass ToolRegistry:\n    \"\"\"HelloAgents工具注册表\"\"\"\n\n    def __init__(self):\n        self._tools: dict[str, Tool] = {}\n        self._functions: dict[str, dict[str, Any]] = {}\n\n    def register_tool(self, tool: Tool):\n        \"\"\"注册Tool对象\"\"\"\n        if tool.name in self._tools:\n            print(f\"⚠️ 警告:工具 '{tool.name}' 已存在，将被覆盖。\")\n        self._tools[tool.name] = tool\n        print(f\"✅ 工具 '{tool.name}' 已注册。\")\n\n    def execute_tool(self, name: str, parameters: str) -> str:\n        \"\"\"根据名称执行已注册的函数工具\"\"\"\n        if name not in self._functions:\n            return f\"工具不存在: {name}\"\n\n        # 注册时保存了函数对象，这里取出并传入参数执行。\n        func = self._functions[name][\"func\"]\n        return func(parameters)\n        \n    def register_function(self, name: str, description: str, func: Callable[[str], str]):\n        \"\"\"\n        直接注册函数作为工具（简便方式）\n\n        Args:\n            name: 工具名称\n            description: 工具描述\n            func: 工具函数，接受字符串参数，返回字符串结果\n        \"\"\"\n        if name in self._functions:\n            print(f\"⚠️ 警告:工具 '{name}' 已存在，将被覆盖。\")\n\n        self._functions[name] = {\n            \"description\": description,\n            \"func\": func\n        }\n        print(f\"✅ 工具 '{name}' 已注册。\")\n\n    def get_tools_description(self) -> str:\n        \"\"\"获取所有可用工具的格式化描述字符串\"\"\"\n        descriptions = []\n\n        # Tool对象描述\n        for tool in self._tools.values():\n            descriptions.append(f\"- {tool.name}: {tool.description}\")\n\n        # 函数工具描述\n        for name, info in self._functions.items():\n            descriptions.append(f\"- {name}: {info['description']}\")\n\n        return \"\\n\".join(descriptions) if descriptions else \"暂无可用工具\"\n\n    def to_openai_schema(self) -> Dict[str, Any]:\n            \"\"\"转换为 OpenAI function calling schema 格式\n\n            用于 FunctionCallAgent，使工具能够被 OpenAI 原生 function calling 使用\n\n            Returns:\n                符合 OpenAI function calling 标准的 schema\n            \"\"\"\n            parameters = self.get_parameters()\n\n            # 构建 properties\n            properties = {}\n            required = []\n\n            for param in parameters:\n                # 基础属性定义\n                prop = {\n                    \"type\": param.type,\n                    \"description\": param.description\n                }\n\n                # 如果有默认值，添加到描述中（OpenAI schema 不支持 default 字段）\n                if param.default is not None:\n                    prop[\"description\"] = f\"{param.description} (默认: {param.default})\"\n\n                # 如果是数组类型，添加 items 定义\n                if param.type == \"array\":\n                    prop[\"items\"] = {\"type\": \"string\"}  # 默认字符串数组\n\n                properties[param.name] = prop\n\n                # 收集必需参数\n                if param.required:\n                    required.append(param.name)\n\n            return {\n                \"type\": \"function\",\n                \"function\": {\n                    \"name\": self.name,\n                    \"description\": self.description,\n                    \"parameters\": {\n                        \"type\": \"object\",\n                        \"properties\": properties,\n                        \"required\": required\n                    }\n                }\n            }\n",
+    "code": "from tools.base import Tool\nfrom typing import Any, Callable, Dict\n\nclass ToolRegistry:\n    \"\"\"工具注册表，统一管理对象工具和函数工具\"\"\"\n\n    def __init__(self):\n        self._tools: dict[str, Tool] = {}\n        self._functions: dict[str, dict[str, Any]] = {}\n\n    def register_tool(self, tool: Tool):\n        \"\"\"注册Tool对象\"\"\"\n        if tool.name in self._tools:\n            print(f\"⚠️ 警告:工具 '{tool.name}' 已存在，将被覆盖。\")\n        self._tools[tool.name] = tool\n        print(f\"✅ 工具 '{tool.name}' 已注册。\")\n\n    def execute_tool(self, name: str, parameters: str) -> str:\n        \"\"\"根据名称执行工具；对象工具优先，函数工具接收原始字符串\"\"\"\n        if name in self._tools:\n            # 统一字符串入口使用 input 键；多参数工具可通过 get_tool() 后自行传入字典。\n            return self._tools[name].run({\"input\": parameters})\n\n        if name in self._functions:\n            # 注册时保存了函数对象，这里取出并传入参数执行。\n            func = self._functions[name][\"func\"]\n            return func(parameters)\n\n        return f\"工具不存在: {name}\"\n\n    def get_tool(self, name: str) -> Tool | None:\n        \"\"\"按名称获取Tool对象；函数工具不在对象表中\"\"\"\n        return self._tools.get(name)\n\n    def list_tools(self) -> list[str]:\n        \"\"\"列出对象工具与函数工具的名称，同名只显示一次\"\"\"\n        return list(dict.fromkeys([*self._tools, *self._functions]))\n\n    def unregister_tool(self, name: str) -> bool:\n        \"\"\"移除指定名称的工具，返回是否找到并移除了注册项\"\"\"\n        found = name in self._tools or name in self._functions\n        # 两张表都清理，避免同名对象被移除后又调用到旧的函数。\n        self._tools.pop(name, None)\n        self._functions.pop(name, None)\n        return found\n        \n    def register_function(self, name: str, description: str, func: Callable[[str], str]):\n        \"\"\"\n        直接注册函数作为工具（简便方式）\n\n        Args:\n            name: 工具名称\n            description: 工具描述\n            func: 工具函数，接受字符串参数，返回字符串结果\n        \"\"\"\n        if name in self._functions:\n            print(f\"⚠️ 警告:工具 '{name}' 已存在，将被覆盖。\")\n\n        self._functions[name] = {\n            \"description\": description,\n            \"func\": func\n        }\n        print(f\"✅ 工具 '{name}' 已注册。\")\n\n    def get_tools_description(self) -> str:\n        \"\"\"获取所有可用工具的格式化描述字符串\"\"\"\n        descriptions = []\n\n        # Tool对象描述\n        for tool in self._tools.values():\n            descriptions.append(f\"- {tool.name}: {tool.description}\")\n\n        # 函数工具描述\n        for name, info in self._functions.items():\n            descriptions.append(f\"- {name}: {info['description']}\")\n\n        return \"\\n\".join(descriptions) if descriptions else \"暂无可用工具\"\n\n    def to_openai_schema(self) -> Dict[str, Any]:\n            \"\"\"转换为 OpenAI function calling schema 格式\n\n            用于 FunctionCallAgent，使工具能够被 OpenAI 原生 function calling 使用\n\n            Returns:\n                符合 OpenAI function calling 标准的 schema\n            \"\"\"\n            parameters = self.get_parameters()\n\n            # 构建 properties\n            properties = {}\n            required = []\n\n            for param in parameters:\n                # 基础属性定义\n                prop = {\n                    \"type\": param.type,\n                    \"description\": param.description\n                }\n\n                # 如果有默认值，添加到描述中（OpenAI schema 不支持 default 字段）\n                if param.default is not None:\n                    prop[\"description\"] = f\"{param.description} (默认: {param.default})\"\n\n                # 如果是数组类型，添加 items 定义\n                if param.type == \"array\":\n                    prop[\"items\"] = {\"type\": \"string\"}  # 默认字符串数组\n\n                properties[param.name] = prop\n\n                # 收集必需参数\n                if param.required:\n                    required.append(param.name)\n\n            return {\n                \"type\": \"function\",\n                \"function\": {\n                    \"name\": self.name,\n                    \"description\": self.description,\n                    \"parameters\": {\n                        \"type\": \"object\",\n                        \"properties\": properties,\n                        \"required\": required\n                    }\n                }\n            }\n",
     "symbols": {
       "ToolRegistry": {
         "start": 4,
-        "end": 105,
-        "doc": "HelloAgents工具注册表"
+        "end": 125,
+        "doc": "工具注册表，统一管理对象工具和函数工具"
       },
       "ToolRegistry.__init__": {
         "start": 7,
@@ -284,22 +938,37 @@
       },
       "ToolRegistry.execute_tool": {
         "start": 18,
-        "end": 25,
-        "doc": "根据名称执行已注册的函数工具"
+        "end": 29,
+        "doc": "根据名称执行工具；对象工具优先，函数工具接收原始字符串"
+      },
+      "ToolRegistry.get_tool": {
+        "start": 31,
+        "end": 33,
+        "doc": "按名称获取Tool对象；函数工具不在对象表中"
+      },
+      "ToolRegistry.list_tools": {
+        "start": 35,
+        "end": 37,
+        "doc": "列出对象工具与函数工具的名称，同名只显示一次"
+      },
+      "ToolRegistry.unregister_tool": {
+        "start": 39,
+        "end": 45,
+        "doc": "移除指定名称的工具，返回是否找到并移除了注册项"
       },
       "ToolRegistry.register_function": {
-        "start": 27,
-        "end": 43,
+        "start": 47,
+        "end": 63,
         "doc": "直接注册函数作为工具（简便方式）\n\nArgs:\n    name: 工具名称\n    description: 工具描述\n    func: 工具函数，接受字符串参数，返回字符串结果"
       },
       "ToolRegistry.get_tools_description": {
-        "start": 45,
-        "end": 57,
+        "start": 65,
+        "end": 77,
         "doc": "获取所有可用工具的格式化描述字符串"
       },
       "ToolRegistry.to_openai_schema": {
-        "start": 59,
-        "end": 105,
+        "start": 79,
+        "end": 125,
         "doc": "转换为 OpenAI function calling schema 格式\n\n用于 FunctionCallAgent，使工具能够被 OpenAI 原生 function calling 使用\n\nReturns:\n    符合 OpenAI function calling 标准的 schema"
       }
     },
@@ -307,79 +976,446 @@
     "origin": "project"
   },
   "tools/calculator_tool.py": {
-    "code": "import ast       # 把字符串表达式解析成语法树，保留括号和运算优先级。\nimport operator  # 提供加减乘除等函数，方便按语法树中的运算符查找并调用。\nimport math      # 提供 sqrt、pi 等数学函数和常量。\nfrom tools.registry import ToolRegistry\n\ndef calculate(expression: str) -> str:\n    \"\"\"计算字符串中的数学表达式，例如 calculate(\"2 + 3 * 4\") 返回 \"14\"。\"\"\"\n    if not expression.strip():\n        return \"计算表达式不能为空\"\n\n    # expression 是字符串，Python 不会自动把它当作算式计算。\n    # 这张表把“语法树中的运算符类型”关联到“实际执行运算的函数”。\n    # 例如 ast.Add 表示加号，operator.add(2, 3) 等价于 2 + 3。\n    operators = {\n        ast.Add: operator.add,      # +\n        ast.Sub: operator.sub,      # -\n        ast.Mult: operator.mul,     # *\n        ast.Div: operator.truediv,  # /\n        ast.USub: operator.neg,     # -5 中的负号\n        ast.UAdd: operator.pos      # +5 中的正号\n    }\n\n    # 明确允许使用的函数和常量；文本名称对应真正的 Python 对象。\n    functions = {\n        'sqrt': math.sqrt,\n        'pi': math.pi,\n    }\n\n    try:\n        # mode='eval' 表示“按单个表达式解析”，不接受赋值、循环等完整语句。\n        # 它不是调用内置 eval()，这里只解析结构，不会执行表达式。\n        # 内置 eval(\"2 + 3\") 会直接执行并返回 5，但也能执行非数学的 Python 表达式。\n        node = ast.parse(expression, mode='eval')\n\n        # node 是表达式的外层包装，node.body 才是要计算的主体。\n        # _eval_node 按上面的运算表递归求值，例如先算 3 * 4，再算 2 + 12。\n        result = _eval_node(node.body, operators, functions)\n        return str(result)\n    except (SyntaxError, ValueError, ArithmeticError, TypeError) as e:\n        # 返回具体的计算错误；未定义函数等编程错误不再被统一掩盖。\n        return f\"计算失败: {e}\"\n\ndef _eval_node(node, operators, functions):\n    \"\"\"简化的表达式求值\"\"\"\n    if isinstance(node, ast.Constant):  # Constant：常量节点，例如数字 2、3.5。\n        return node.value\n    elif isinstance(node, ast.BinOp):  # BinOp：二元运算节点，例如 2 + 3，包含左右操作数和运算符。\n        left = _eval_node(node.left, operators, functions)\n        right = _eval_node(node.right, operators, functions)\n        op = operators.get(type(node.op))\n        return op(left, right)\n    elif isinstance(node, ast.Call): # Call：函数调用节点，例如 sqrt(16)。\n        func_name = node.func.id\n        if func_name in functions:\n            args = [_eval_node(arg, operators, functions) for arg in node.args]\n            return functions[func_name](*args)\n    elif isinstance(node, ast.Name):  # Name：名称节点，例如 pi，需要从映射表中取出对应常量。\n        if node.id in functions:\n            return functions[node.id]\n\ndef create_calculator_registry():\n    \"\"\"创建包含计算器的工具注册表\"\"\"\n    registry = ToolRegistry()\n\n    # 注册计算器函数\n    registry.register_function(\n        name=\"my_calculator\",\n        description=\"简单的数学计算工具，支持基本运算(+,-,*,/)和sqrt函数\",\n        func=calculate\n    )\n\n    return registry\n\n\n\n",
+    "code": "import ast       # 把字符串表达式解析成语法树，保留括号和运算优先级。\nimport operator  # 提供加减乘除等函数，方便按语法树中的运算符查找并调用。\nimport math      # 提供 sqrt、pi 等数学函数和常量。\nfrom typing import Any, Dict, List\n\nfrom tools.base import Tool, ToolParameter\nfrom tools.registry import ToolRegistry\n\ndef calculate(expression: str) -> str:\n    \"\"\"计算字符串中的数学表达式，例如 calculate(\"2 + 3 * 4\") 返回 \"14\"。\"\"\"\n    if not expression.strip():\n        return \"计算表达式不能为空\"\n\n    # expression 是字符串，Python 不会自动把它当作算式计算。\n    # 这张表把“语法树中的运算符类型”关联到“实际执行运算的函数”。\n    # 例如 ast.Add 表示加号，operator.add(2, 3) 等价于 2 + 3。\n    operators = {\n        ast.Add: operator.add,      # +\n        ast.Sub: operator.sub,      # -\n        ast.Mult: operator.mul,     # *\n        ast.Div: operator.truediv,  # /\n        ast.USub: operator.neg,     # -5 中的负号\n        ast.UAdd: operator.pos      # +5 中的正号\n    }\n\n    # 明确允许使用的函数和常量；文本名称对应真正的 Python 对象。\n    functions = {\n        'sqrt': math.sqrt,\n        'pi': math.pi,\n    }\n\n    try:\n        # mode='eval' 表示“按单个表达式解析”，不接受赋值、循环等完整语句。\n        # 它不是调用内置 eval()，这里只解析结构，不会执行表达式。\n        # 内置 eval(\"2 + 3\") 会直接执行并返回 5，但也能执行非数学的 Python 表达式。\n        node = ast.parse(expression, mode='eval')\n\n        # node 是表达式的外层包装，node.body 才是要计算的主体。\n        # _eval_node 按上面的运算表递归求值，例如先算 3 * 4，再算 2 + 12。\n        result = _eval_node(node.body, operators, functions)\n        return str(result)\n    except (SyntaxError, ValueError, ArithmeticError, TypeError) as e:\n        # 返回具体的计算错误；未定义函数等编程错误不再被统一掩盖。\n        return f\"计算失败: {e}\"\n\ndef _eval_node(node, operators, functions):\n    \"\"\"简化的表达式求值\"\"\"\n    if isinstance(node, ast.Constant):  # Constant：常量节点，例如数字 2、3.5。\n        return node.value\n    elif isinstance(node, ast.BinOp):  # BinOp：二元运算节点，例如 2 + 3，包含左右操作数和运算符。\n        left = _eval_node(node.left, operators, functions)\n        right = _eval_node(node.right, operators, functions)\n        op = operators.get(type(node.op))\n        return op(left, right)\n    elif isinstance(node, ast.Call): # Call：函数调用节点，例如 sqrt(16)。\n        func_name = node.func.id\n        if func_name in functions:\n            args = [_eval_node(arg, operators, functions) for arg in node.args]\n            return functions[func_name](*args)\n    elif isinstance(node, ast.Name):  # Name：名称节点，例如 pi，需要从映射表中取出对应常量。\n        if node.id in functions:\n            return functions[node.id]\n\nclass CalculatorTool(Tool):\n    \"\"\"将计算函数封装为Tool对象，供Agent和注册表调用\"\"\"\n\n    def __init__(self):\n        super().__init__(\n            name=\"calculator\",\n            description=\"执行数学计算，支持加减乘除、括号、sqrt函数和pi常量。例如：2+3*4、sqrt(16)。\"\n        )\n\n    def run(self, parameters: Dict[str, Any]) -> str:\n        \"\"\"读取表达式并交给现有calculate函数求值\"\"\"\n        # input 是工具的标准参数；expression 兼容原计算器的调用方式。\n        expression = parameters.get(\"input\", \"\") or parameters.get(\"expression\", \"\")\n        return calculate(expression)\n\n    def get_parameters(self) -> List[ToolParameter]:\n        \"\"\"描述工具输入，参数名与run读取的input一致\"\"\"\n        return [\n            ToolParameter(\n                name=\"input\",\n                type=\"string\",\n                description=\"数学表达式，例如 15 * 8 + 32 或 sqrt(16)\",\n                required=True\n            )\n        ]\n\n\ndef create_calculator_registry():\n    \"\"\"创建包含计算器的工具注册表\"\"\"\n    registry = ToolRegistry()\n\n    # 注册计算器函数\n    registry.register_function(\n        name=\"calculate\",\n        description=\"简单的数学计算工具，支持基本运算(+,-,*,/)和sqrt函数\",\n        func=calculate\n    )\n\n    return registry\n\n\n\n",
     "symbols": {
       "calculate": {
-        "start": 6,
-        "end": 41,
+        "start": 9,
+        "end": 44,
         "doc": "计算字符串中的数学表达式，例如 calculate(\"2 + 3 * 4\") 返回 \"14\"。"
       },
       "_eval_node": {
-        "start": 43,
-        "end": 59,
+        "start": 46,
+        "end": 62,
         "doc": "简化的表达式求值"
       },
+      "CalculatorTool": {
+        "start": 64,
+        "end": 88,
+        "doc": "将计算函数封装为Tool对象，供Agent和注册表调用"
+      },
+      "CalculatorTool.__init__": {
+        "start": 67,
+        "end": 71,
+        "doc": ""
+      },
+      "CalculatorTool.run": {
+        "start": 73,
+        "end": 77,
+        "doc": "读取表达式并交给现有calculate函数求值"
+      },
+      "CalculatorTool.get_parameters": {
+        "start": 79,
+        "end": 88,
+        "doc": "描述工具输入，参数名与run读取的input一致"
+      },
       "create_calculator_registry": {
-        "start": 61,
-        "end": 72,
+        "start": 91,
+        "end": 102,
         "doc": "创建包含计算器的工具注册表"
       }
     },
     "calls": [
       {
-        "line": 63,
-        "start": 15,
-        "end": 27,
-        "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
-      },
-      {
-        "line": 69,
-        "start": 13,
-        "end": 22,
-        "file": "tools/calculator_tool.py",
-        "symbol": "calculate"
-      },
-      {
-        "line": 66,
-        "start": 4,
-        "end": 30,
-        "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_function"
-      },
-      {
-        "line": 37,
+        "line": 40,
         "start": 17,
         "end": 27,
         "file": "tools/calculator_tool.py",
         "symbol": "_eval_node"
       },
       {
-        "line": 48,
+        "line": 51,
         "start": 15,
         "end": 25,
         "file": "tools/calculator_tool.py",
         "symbol": "_eval_node"
       },
       {
-        "line": 49,
+        "line": 52,
         "start": 16,
         "end": 26,
         "file": "tools/calculator_tool.py",
         "symbol": "_eval_node"
       },
       {
-        "line": 55,
+        "line": 58,
         "start": 20,
         "end": 30,
         "file": "tools/calculator_tool.py",
         "symbol": "_eval_node"
+      },
+      {
+        "line": 64,
+        "start": 21,
+        "end": 25,
+        "file": "tools/base.py",
+        "symbol": "Tool"
+      },
+      {
+        "line": 68,
+        "start": 8,
+        "end": 24,
+        "file": "tools/base.py",
+        "symbol": "Tool.__init__"
+      },
+      {
+        "line": 77,
+        "start": 15,
+        "end": 24,
+        "file": "tools/calculator_tool.py",
+        "symbol": "calculate"
+      },
+      {
+        "line": 82,
+        "start": 12,
+        "end": 25,
+        "file": "tools/base.py",
+        "symbol": "ToolParameter"
+      },
+      {
+        "line": 93,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 96,
+        "start": 4,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_function"
+      },
+      {
+        "line": 99,
+        "start": 13,
+        "end": 22,
+        "file": "tools/calculator_tool.py",
+        "symbol": "calculate"
+      }
+    ],
+    "origin": "project"
+  },
+  "tools/search_tool.py": {
+    "code": "from tools.base import Tool\nimport os\nfrom typing import Optional\n\nclass SearchTool(Tool):\n    \"\"\"\n    智能混合搜索工具\n\n    支持多种搜索引擎后端，智能选择最佳搜索源:\n    1. 混合模式 (hybrid) - 智能选择TAVILY或SERPAPI\n    2. Tavily API (tavily) - 专业AI搜索\n    3. SerpApi (serpapi) - 传统Google搜索\n    \"\"\"\n\n    def __init__(self, backend: str = \"hybrid\", tavily_key: Optional[str] = None, serpapi_key: Optional[str] = None):\n        super().__init__(\n            name=\"search\",\n            description=\"一个智能网页搜索引擎。支持混合搜索模式，自动选择最佳搜索源。\"\n        )\n        self.backend = backend\n        self.tavily_key = tavily_key or os.getenv(\"TAVILY_API_KEY\")\n        self.serpapi_key = serpapi_key or os.getenv(\"SERPAPI_API_KEY\")\n        self.available_backends = []\n        self._setup_backends()\n\n    def _search_hybrid(self, query: str) -> str:\n        \"\"\"\"混合搜索 - 智能选择最佳搜索源\"\"\"\n        # 优先使用 Tavily（AI优化的搜索）\n        if \"tavily\" in self.available_backends:\n            try:\n                return self._search_tavily(query)\n            except Exception as e:\n                print(f\"⚠️ Tavily搜索失败: {e}\")\n                # 如果Tavily失败，尝试SerpApi\n                if \"serpapi\" in self.available_backends:\n                    print(\"🔄 切换到SerpApi搜索\")\n                    return self._search_serpapi(query)\n\n        # 如果Tavily不可用，使用SerpApi\n        elif \"serpapi\" in self.available_backends:\n            try:\n                return self._search_serpapi(query)\n            except Exception as e:\n                print(f\"⚠️ SerpApi搜索失败: {e}\")\n\n        # 如果都不可用，提示用户配置API\n        return \"❌ 没有可用的搜索源，请配置TAVILY_API_KEY或SERPAPI_API_KEY环境变量\"\n\n    def _search_tavily(self, query: str) -> str:\n        \"\"\"\"使用Tavily搜索\"\"\"\n        response = self.tavily_client.search(\n            query = query,\n            search_depth = \"basic\",\n            include_answer = True,\n            max_results = 3\n        )\n\n        result = f\"🎯 Tavily AI搜索结果:{response.get('answer', '未找到直接答案')}\\n\\n\"\n\n        for i, item in enumerate(response.get('results', [][:3], 1)):\n            result += f\"[{i}] {item.get('title', '')}\\n\"\n            result += f\"    {item.get('content', '')[:200]}...\\n\"\n            result += f\"    来源: {item.get('url', '')}\\n\\n\"\n\n        return result\n\n    def _search_serpapi(self, query: str) -> str:\n        \"\"\"使用SerpApi搜索，返回直接答案及前三条网页结果\"\"\"\n        import serpapi\n\n        # 新版 SDK 使用 Client，密钥沿用构造函数读取的 SERPAPI_API_KEY。\n        client = serpapi.Client(api_key=self.serpapi_key)\n        response = client.search({\n            \"engine\": \"google\",\n            \"q\": query,\n            \"gl\": \"cn\",\n            \"hl\": \"zh-cn\"\n        })\n\n        # answer_box 是搜索结果中的直接答案，可能只有摘要而没有 answer。\n        answer_box = response.get(\"answer_box\", {})\n        answer = answer_box.get(\"answer\") or answer_box.get(\"snippet\", \"\")\n        items = response.get(\"organic_results\", [])[:3]\n\n        if not answer and not items:\n            return f\"未找到关于 '{query}' 的搜索结果。\"\n\n        result = \"🔍 SerpApi Google搜索结果:\\n\\n\"\n        if answer:\n            result += f\"💡 直接答案: {answer}\\n\\n\"\n\n        # SerpApi 的摘要、链接字段分别是 snippet、link，与 Tavily 不同。\n        for i, item in enumerate(items, 1):\n            result += f\"[{i}] {item.get('title', '')}\\n\"\n            result += f\"    {item.get('snippet', '')[:200]}...\\n\"\n            result += f\"    来源: {item.get('link', '')}\\n\\n\"\n\n        return result\n",
+    "symbols": {
+      "SearchTool": {
+        "start": 5,
+        "end": 98,
+        "doc": "智能混合搜索工具\n\n支持多种搜索引擎后端，智能选择最佳搜索源:\n1. 混合模式 (hybrid) - 智能选择TAVILY或SERPAPI\n2. Tavily API (tavily) - 专业AI搜索\n3. SerpApi (serpapi) - 传统Google搜索"
+      },
+      "SearchTool.__init__": {
+        "start": 15,
+        "end": 24,
+        "doc": ""
+      },
+      "SearchTool._search_hybrid": {
+        "start": 26,
+        "end": 47,
+        "doc": "\"混合搜索 - 智能选择最佳搜索源"
+      },
+      "SearchTool._search_tavily": {
+        "start": 49,
+        "end": 65,
+        "doc": "\"使用Tavily搜索"
+      },
+      "SearchTool._search_serpapi": {
+        "start": 67,
+        "end": 98,
+        "doc": "使用SerpApi搜索，返回直接答案及前三条网页结果"
+      }
+    },
+    "calls": [
+      {
+        "line": 5,
+        "start": 17,
+        "end": 21,
+        "file": "tools/base.py",
+        "symbol": "Tool"
+      },
+      {
+        "line": 16,
+        "start": 8,
+        "end": 24,
+        "file": "tools/base.py",
+        "symbol": "Tool.__init__"
+      },
+      {
+        "line": 31,
+        "start": 23,
+        "end": 42,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool._search_tavily"
+      },
+      {
+        "line": 37,
+        "start": 27,
+        "end": 47,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool._search_serpapi"
+      },
+      {
+        "line": 42,
+        "start": 23,
+        "end": 43,
+        "file": "tools/search_tool.py",
+        "symbol": "SearchTool._search_serpapi"
+      }
+    ],
+    "origin": "project"
+  },
+  "tools/advanced_search.py": {
+    "code": "import os\nfrom typing import Optional, List, Dict, Any\nfrom tools.registry import ToolRegistry\n\nclass AdvancedSearchTool:\n    \"\"\"\n    自定义高级搜索工具类\n    展示多源整合和智能选择的设计模式\n    \"\"\"\n\n    def __init__(self):\n        self.name = \"advanced_search\"\n        self.description = \"智能搜索工具，支持多个搜索源，自动选择最佳结果\"\n        self.search_sources = []\n        self._setup_search_sources()\n\n    def _setup_search_sources(self):\n        \"\"\"设置可用的搜索源\"\"\"\n        # 检查Tavily可用性\n        if os.getenv(\"TAVILY_API_KEY\"):\n            try:\n                from tavily import TavilyClient\n                self.tavily_client = TavilyClient(api_key=os.getenv(\"TAVILY_API_KEY\"))\n                self.search_sources.append(\"tavily\")\n                print(\"✅ Tavily搜索源已启用\")\n            except ImportError:\n                print(\"⚠️ Tavily库未安装\")\n\n        if os.getenv(\"SERPAPI_API_KEY\"):\n            try:\n                import serpapi\n                self.search_sources.append(\"serpapi\")\n                print(\"✅ SerpApi搜索源已启用\")\n            except ImportError:\n                print(\"⚠️ SerpApi库未安装\")\n\n        if self.search_sources:\n            print(f\"🔧 可用搜索源: {', '.join(self.search_sources)}\")\n        else:\n            print(\"⚠️ 没有可用的搜索源，请配置API密钥\")\n\n    def search(self, query: str) -> str:\n        \"\"\"执行智能搜索\"\"\"\n        if not query.strip():\n            return \"❌ 错误:搜索查询不能为空\"\n\n        # 检查是否有可用的搜索源\n        if not self.search_sources:\n            return \"\"\"❌ 没有可用的搜索源，请配置以下API密钥之一:\n1. Tavily API: 设置环境变量 TAVILY_API_KEY\n获取地址: https://tavily.com/\n\n2. SerpAPI: 设置环境变量 SERPAPI_API_KEY\n获取地址: https://serpapi.com/\n\n配置后重新运行程序。\"\"\"\n\n        print(f\"🔍 开始智能搜索: {query}\")\n\n        # 尝试多个搜索源，返回最佳结果\n        for source in self.search_sources:\n            try:\n                if source == \"tavily\":\n                    result = self._search_with_tavily(query)\n                    if result and \"未找到\" not in result:\n                        return f\"📊 Tavily AI搜索结果:\\n\\n{result}\"\n\n                elif source == \"serpapi\":\n                    result = self._search_with_serpapi(query)\n                    if result and \"未找到\" not in result:\n                        return f\"🌐 SerpApi Google搜索结果:\\n\\n{result}\"\n\n            except Exception as e:\n                print(f\"⚠️ {source} 搜索失败: {e}\")\n                continue\n\n        return \"❌ 所有搜索源都失败了，请检查网络连接和API密钥配置\"\n\n    def _search_with_tavily(self, query: str) -> str:\n        \"\"\"使用Tavily搜索\"\"\"\n        response = self.tavily_client.search(query=query, max_results=3)\n\n        if response.get('answer'):\n            result = f\"💡 AI直接答案:{response['answer']}\\n\\n\"\n        else:\n            result = \"\"\n\n        result += \"🔗 相关结果:\\n\"\n        for i, item in enumerate(response.get('results', [])[:3], 1):\n            result += f\"[{i}] {item.get('title', '')}\\n\"\n            result += f\"    {item.get('content', '')[:150]}...\\n\\n\"\n\n        return result\n\n    def _search_with_serpapi(self, query: str) -> str:\n        \"\"\"使用SerpApi搜索\"\"\"\n        import serpapi\n\n        search = serpapi.GoogleSearch({\n            \"q\": query,\n            \"api_key\": os.getenv(\"SERPAPI_API_KEY\"),\n            \"num\": 3\n        })\n\n        results = search.get_dict()\n\n        result = \"🔗 Google搜索结果:\\n\"\n        if \"organic_results\" in results:\n            for i, res in enumerate(results[\"organic_results\"][:3], 1):\n                result += f\"[{i}] {res.get('title', '')}\\n\"\n                result += f\"    {res.get('snippet', '')}\\n\\n\"\n\n        return result\n\ndef create_advanced_search_registry():\n    \"\"\"创建包含高级搜索工具的注册表\"\"\"\n    registry = ToolRegistry()\n\n    # 创建搜索工具实例\n    search_tool = AdvancedSearchTool()\n\n    # 注册搜索工具的方法作为函数\n    registry.register_function(\n        name=\"advanced_search\",\n        description=\"高级搜索工具，整合Tavily和SerpAPI多个搜索源，提供更全面的搜索结果\",\n        func=search_tool.search\n    )\n\n    return registry\n",
+    "symbols": {
+      "AdvancedSearchTool": {
+        "start": 5,
+        "end": 113,
+        "doc": "自定义高级搜索工具类\n展示多源整合和智能选择的设计模式"
+      },
+      "AdvancedSearchTool.__init__": {
+        "start": 11,
+        "end": 15,
+        "doc": ""
+      },
+      "AdvancedSearchTool._setup_search_sources": {
+        "start": 17,
+        "end": 40,
+        "doc": "设置可用的搜索源"
+      },
+      "AdvancedSearchTool.search": {
+        "start": 42,
+        "end": 77,
+        "doc": "执行智能搜索"
+      },
+      "AdvancedSearchTool._search_with_tavily": {
+        "start": 79,
+        "end": 93,
+        "doc": "使用Tavily搜索"
+      },
+      "AdvancedSearchTool._search_with_serpapi": {
+        "start": 95,
+        "end": 113,
+        "doc": "使用SerpApi搜索"
+      },
+      "create_advanced_search_registry": {
+        "start": 115,
+        "end": 129,
+        "doc": "创建包含高级搜索工具的注册表"
+      }
+    },
+    "calls": [
+      {
+        "line": 15,
+        "start": 8,
+        "end": 34,
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool._setup_search_sources"
+      },
+      {
+        "line": 64,
+        "start": 29,
+        "end": 53,
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool._search_with_tavily"
+      },
+      {
+        "line": 69,
+        "start": 29,
+        "end": 54,
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool._search_with_serpapi"
+      },
+      {
+        "line": 117,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 120,
+        "start": 18,
+        "end": 36,
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool.__init__"
+      },
+      {
+        "line": 123,
+        "start": 4,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_function"
+      },
+      {
+        "line": 126,
+        "start": 13,
+        "end": 31,
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool.search"
+      }
+    ],
+    "origin": "project"
+  },
+  "tools/chain.py": {
+    "code": "from typing import List, Dict, Any, Optional\nfrom tools.registry import ToolRegistry\n\nclass ToolChain:\n    \"\"\"工具链 - 支持多个工具的顺序执行\"\"\"\n\n    def __init__(self, name: str, description: str):\n        self.name = name\n        self.description = description\n        self.steps: List[Dict[str, Any]] = []\n\n    def add_step(self, tool_name: str, input_template: str, output_key: str = None):\n        \"\"\"\n        添加工具执行步骤\n\n        Args:\n            tool_name: 工具名称\n            input_template: 输入模板，支持变量替换\n            output_key: 输出结果的键名，用于后续步骤引用\n        \"\"\"\n        self.steps.append({\n            \"tool_name\": tool_name,\n            \"input_template\": input_template,\n            \"output_key\": output_key or f\"step_{len(self.steps)}_result\"\n        })\n\n    def execute(self, registry: ToolRegistry, initial_input: str, context: Dict[str, Any] = None) -> str:\n        \"\"\"执行工具链\"\"\"\n        context = context or {}\n        context[\"input\"] = initial_input\n\n        print(f\"🔗 开始执行工具链: {self.name}\")\n\n        for i, step in enumerate(self.steps, 1):\n            tool_name = step[\"tool_name\"]\n            input_template = step[\"input_template\"]\n            output_key = step[\"output_key\"]\n\n            # 替换模板中的变量\n            try:\n                tool_input = input_template.format(**context)\n            except KeyError as e:\n                return f\"❌ 工具链执行失败:模板变量 {e} 未找到\"\n\n            print(f\"  步骤 {i}: 使用 {tool_name} 处理 '{tool_input[:50]}...'\")\n\n            # 执行工具\n            result = registry.execute_tool(tool_name, tool_input)\n            context[output_key] = result\n\n            print(f\"  ✅ 步骤 {i} 完成，结果长度: {len(result)} 字符\")\n\n        # 返回最后一步的结果\n        final_result = context[self.steps[-1][\"output_key\"]]\n        print(f\"🎉 工具链 '{self.name}' 执行完成\")\n        return final_result\n\nclass ToolChainManager:\n    \"\"\"工具链管理器\"\"\"\n\n    def __init__(self, registry: ToolRegistry):\n        self.registry = registry\n        self.chains: Dict[str, ToolChain] = {}\n\n    def register_chain(self, chain: ToolChain):\n        \"\"\"注册工具链\"\"\"\n        self.chains[chain.name] = chain\n        print(f\"✅ 工具链 '{chain.name}' 已注册\")\n\n    def execute_chain(self, chain_name: str, input_data: str, context: Dict[str, Any] = None) -> str:\n        \"\"\"执行指定的工具链\"\"\"\n        if chain_name not in self.chains:\n            return f\"❌ 工具链 '{chain_name}' 不存在\"\n\n        chain = self.chains[chain_name]\n        return chain.execute(self.registry, input_data, context)\n\n    def list_chains(self) -> List[str]:\n        \"\"\"列出所有工具链\"\"\"\n        return list(self.chains.keys())\n\n# 使用示例\ndef create_research_chain() -> ToolChain:\n    \"\"\"创建一个研究工具链:搜索 -> 计算 -> 总结\"\"\"\n    chain = ToolChain(\n        name=\"research_and_calculate\",\n        description=\"搜索信息并进行相关计算\"\n    )\n\n    # 步骤1:搜索信息\n    chain.add_step(\n        tool_name=\"search\",\n        input_template=\"{input}\",\n        output_key=\"search_result\"\n    )\n\n    # 步骤2:基于搜索结果进行计算（如果需要）\n    chain.add_step(\n        tool_name=\"calculate\",\n        input_template=\"根据以下信息计算相关数值:{search_result}\",\n        output_key=\"calculation_result\"\n    )\n\n    return chain\n",
+    "symbols": {
+      "ToolChain": {
+        "start": 4,
+        "end": 56,
+        "doc": "工具链 - 支持多个工具的顺序执行"
+      },
+      "ToolChain.__init__": {
+        "start": 7,
+        "end": 10,
+        "doc": ""
+      },
+      "ToolChain.add_step": {
+        "start": 12,
+        "end": 25,
+        "doc": "添加工具执行步骤\n\nArgs:\n    tool_name: 工具名称\n    input_template: 输入模板，支持变量替换\n    output_key: 输出结果的键名，用于后续步骤引用"
+      },
+      "ToolChain.execute": {
+        "start": 27,
+        "end": 56,
+        "doc": "执行工具链"
+      },
+      "ToolChainManager": {
+        "start": 58,
+        "end": 80,
+        "doc": "工具链管理器"
+      },
+      "ToolChainManager.__init__": {
+        "start": 61,
+        "end": 63,
+        "doc": ""
+      },
+      "ToolChainManager.register_chain": {
+        "start": 65,
+        "end": 68,
+        "doc": "注册工具链"
+      },
+      "ToolChainManager.execute_chain": {
+        "start": 70,
+        "end": 76,
+        "doc": "执行指定的工具链"
+      },
+      "ToolChainManager.list_chains": {
+        "start": 78,
+        "end": 80,
+        "doc": "列出所有工具链"
+      },
+      "create_research_chain": {
+        "start": 83,
+        "end": 104,
+        "doc": "创建一个研究工具链:搜索 -> 计算 -> 总结"
+      }
+    },
+    "calls": [
+      {
+        "line": 48,
+        "start": 21,
+        "end": 42,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 85,
+        "start": 12,
+        "end": 21,
+        "file": "tools/chain.py",
+        "symbol": "ToolChain.__init__"
+      },
+      {
+        "line": 91,
+        "start": 4,
+        "end": 18,
+        "file": "tools/chain.py",
+        "symbol": "ToolChain.add_step"
+      },
+      {
+        "line": 98,
+        "start": 4,
+        "end": 18,
+        "file": "tools/chain.py",
+        "symbol": "ToolChain.add_step"
+      }
+    ],
+    "origin": "project"
+  },
+  "tools/async_executor.py": {
+    "code": "# async_executor.py\nimport asyncio\nimport concurrent.futures\nfrom typing import Dict, Any, List, Callable\nfrom tools.registry import ToolRegistry\n\nclass AsyncToolExecutor:\n    \"\"\"异步工具执行器\"\"\"\n\n    def __init__(self, registry: ToolRegistry, max_workers: int = 4):\n        self.registry = registry\n        self.executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_workers)\n\n    async def execute_tool_async(self, tool_name: str, input_data: str) -> str:\n        \"\"\"异步执行单个工具\"\"\"\n        loop = asyncio.get_event_loop()\n\n        def _execute():\n            return self.registry.execute_tool(tool_name, input_data)\n\n        result = await loop.run_in_executor(self.executor, _execute)\n        return result\n\n    async def execute_tools_parallel(self, tasks: List[Dict[str, str]]) -> List[str]:\n        \"\"\"并行执行多个工具\"\"\"\n        print(f\"🚀 开始并行执行 {len(tasks)} 个工具任务\")\n\n        # 创建异步任务\n        async_tasks = []\n        for task in tasks:\n            tool_name = task[\"tool_name\"]\n            input_data = task[\"input_data\"]\n            async_task = self.execute_tool_async(tool_name, input_data)\n            async_tasks.append(async_task)\n\n        # 等待所有任务完成\n        results = await asyncio.gather(*async_tasks)\n\n        print(f\"✅ 所有工具任务执行完成\")\n        return results\n\n    def __del__(self):\n        \"\"\"清理资源\"\"\"\n        if hasattr(self, 'executor'):\n            self.executor.shutdown(wait=True)\n\n# 使用示例\nasync def test_parallel_execution():\n    \"\"\"测试并行工具执行\"\"\"\n    from tools.registry import ToolRegistry\n\n    registry = ToolRegistry()\n    # 假设已经注册了搜索和计算工具\n\n    executor = AsyncToolExecutor(registry)\n\n    # 定义并行任务\n    tasks = [\n        {\"tool_name\": \"search\", \"input_data\": \"Python编程\"},\n        {\"tool_name\": \"search\", \"input_data\": \"机器学习\"},\n        {\"tool_name\": \"calculate\", \"input_data\": \"2 + 2\"},\n        {\"tool_name\": \"calculate\", \"input_data\": \"sqrt(16)\"},\n    ]\n\n    # 并行执行\n    results = await executor.execute_tools_parallel(tasks)\n\n    for i, result in enumerate(results):\n        print(f\"任务 {i+1} 结果: {result[:100]}...\")\n",
+    "symbols": {
+      "AsyncToolExecutor": {
+        "start": 7,
+        "end": 45,
+        "doc": "异步工具执行器"
+      },
+      "AsyncToolExecutor.__init__": {
+        "start": 10,
+        "end": 12,
+        "doc": ""
+      },
+      "AsyncToolExecutor.execute_tool_async": {
+        "start": 14,
+        "end": 22,
+        "doc": "异步执行单个工具"
+      },
+      "AsyncToolExecutor.execute_tools_parallel": {
+        "start": 24,
+        "end": 40,
+        "doc": "并行执行多个工具"
+      },
+      "AsyncToolExecutor.__del__": {
+        "start": 42,
+        "end": 45,
+        "doc": "清理资源"
+      },
+      "test_parallel_execution": {
+        "start": 48,
+        "end": 69,
+        "doc": "测试并行工具执行"
+      }
+    },
+    "calls": [
+      {
+        "line": 19,
+        "start": 19,
+        "end": 45,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 33,
+        "start": 25,
+        "end": 48,
+        "file": "tools/async_executor.py",
+        "symbol": "AsyncToolExecutor.execute_tool_async"
+      },
+      {
+        "line": 52,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 55,
+        "start": 15,
+        "end": 32,
+        "file": "tools/async_executor.py",
+        "symbol": "AsyncToolExecutor.__init__"
+      },
+      {
+        "line": 66,
+        "start": 20,
+        "end": 51,
+        "file": "tools/async_executor.py",
+        "symbol": "AsyncToolExecutor.execute_tools_parallel"
       }
     ],
     "origin": "project"
   },
   "test/test_simple_agent.py": {
-    "code": "# test_simple_agent.py\nfrom hello_agents import HelloAgentsLLM, ToolRegistry\nfrom hello_agents.tools import CalculatorTool\nfrom agents.simple_agent import SimpleAgent\nfrom core.llm import create_llm\n\n\n# 创建LLM实例\nllm = create_llm()\n\n# 测试1:基础对话Agent（无工具）\nprint(\"=== 测试1:基础对话 ===\")\nbasic_agent = SimpleAgent(\n    name=\"基础助手\",\n    llm=llm,\n    system_prompt=\"你是一个友好的AI助手，请用简洁明了的方式回答问题。\"\n)\n\nresponse1 = basic_agent.run(\"你好，请介绍一下自己\")\nprint(f\"基础对话响应: {response1}\\n\")\n\n# 测试2:带工具的Agent\nprint(\"=== 测试2:工具增强对话 ===\")\ntool_registry = ToolRegistry()\ncalculator = CalculatorTool()\ntool_registry.register_tool(calculator)\n\nenhanced_agent = SimpleAgent(\n    name=\"增强助手\",\n    llm=llm,\n    system_prompt=\"你是一个智能助手，可以使用工具来帮助用户。\",\n    tool_registry=tool_registry,\n    enable_tool_calling=True\n)\n\nresponse2 = enhanced_agent.run(\"请帮我计算 15 * 8 + 32\")\nprint(f\"工具增强响应: {response2}\\n\")\n\n# 测试3:流式响应\nprint(\"=== 测试3:流式响应 ===\")\nprint(\"流式响应: \", end=\"\")\nfor chunk in basic_agent.stream_run(\"请解释什么是人工智能\"):\n    pass  # 内容已在stream_run中实时打印\n\n# 测试4:动态添加工具\nprint(\"\\n=== 测试4:动态工具管理 ===\")\nprint(f\"添加工具前: {basic_agent.has_tools()}\")\nbasic_agent.add_tool(calculator)\nprint(f\"添加工具后: {basic_agent.has_tools()}\")\nprint(f\"可用工具: {basic_agent.list_tools()}\")\n\n# 查看对话历史\nprint(f\"\\n对话历史: {len(basic_agent.get_history())} 条消息\")\n",
+    "code": "# test_simple_agent.py\nfrom tools.registry import ToolRegistry\nfrom tools.calculator_tool import CalculatorTool\nfrom agents.simple_agent import SimpleAgent\nfrom core.llm import create_llm\n\n\n# 创建LLM实例\nllm = create_llm()\n\n# 测试1:基础对话Agent（无工具）\nprint(\"=== 测试1:基础对话 ===\")\nbasic_agent = SimpleAgent(\n    name=\"基础助手\",\n    llm=llm,\n    system_prompt=\"你是一个友好的AI助手，请用简洁明了的方式回答问题。\"\n)\n\nresponse1 = basic_agent.run(\"你好，请介绍一下自己\")\nprint(f\"基础对话响应: {response1}\\n\")\n\n# 测试2:带工具的Agent\nprint(\"=== 测试2:工具增强对话 ===\")\ntool_registry = ToolRegistry()\ncalculator = CalculatorTool()\ntool_registry.register_tool(calculator)\n\nenhanced_agent = SimpleAgent(\n    name=\"增强助手\",\n    llm=llm,\n    system_prompt=\"你是一个智能助手，可以使用工具来帮助用户。\",\n    tool_registry=tool_registry,\n    enable_tool_calling=True\n)\n\nresponse2 = enhanced_agent.run(\"请帮我计算 15 * 8 + 32\")\nprint(f\"工具增强响应: {response2}\\n\")\n\n# 测试3:流式响应\nprint(\"=== 测试3:流式响应 ===\")\nprint(\"流式响应: \", end=\"\")\nfor chunk in basic_agent.stream_run(\"请解释什么是人工智能\"):\n    pass  # 内容已在stream_run中实时打印\n\n# 测试4:动态添加工具\nprint(\"\\n=== 测试4:动态工具管理 ===\")\nprint(f\"添加工具前: {basic_agent.has_tools()}\")\nbasic_agent.add_tool(calculator)\nprint(f\"添加工具后: {basic_agent.has_tools()}\")\nprint(f\"可用工具: {basic_agent.list_tools()}\")\n\n# 查看对话历史\nprint(f\"\\n对话历史: {len(basic_agent.get_history())} 条消息\")\n",
     "symbols": {},
     "calls": [
       {
@@ -404,6 +1440,27 @@
         "symbol": "SimpleAgent.run"
       },
       {
+        "line": 24,
+        "start": 16,
+        "end": 28,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 25,
+        "start": 13,
+        "end": 27,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.__init__"
+      },
+      {
+        "line": 26,
+        "start": 0,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_tool"
+      },
+      {
         "line": 28,
         "start": 17,
         "end": 28,
@@ -425,18 +1482,18 @@
         "symbol": "SimpleAgent.stream_run"
       },
       {
-        "line": 48,
-        "start": 0,
-        "end": 20,
-        "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.add_tool"
-      },
-      {
         "line": 47,
         "start": 16,
         "end": 37,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.has_tools"
+      },
+      {
+        "line": 48,
+        "start": 0,
+        "end": 20,
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent.add_tool"
       },
       {
         "line": 49,
@@ -451,22 +1508,334 @@
         "end": 37,
         "file": "agents/simple_agent.py",
         "symbol": "SimpleAgent.list_tools"
+      },
+      {
+        "line": 53,
+        "start": 21,
+        "end": 44,
+        "file": "core/agent.py",
+        "symbol": "Agent.get_history"
+      }
+    ],
+    "origin": "project"
+  },
+  "test/test_react_agent.py": {
+    "code": "\"\"\"本地ReAct流程的离线测试，不请求模型服务。\"\"\"\n\nimport pytest\n\nfrom agents.react_agent import ReActAgent\nfrom core.agent import Agent\nfrom core.config import Config\nfrom core.message import Message\nfrom tools.calculator_tool import CalculatorTool\nfrom tools.registry import ToolRegistry\n\n\nclass FakeLLM:\n    provider = \"offline\"\n\n    def __init__(self, responses):\n        self.responses = iter(responses)\n        self.requests = []\n\n    def invoke(self, messages, **kwargs):\n        self.requests.append((messages, kwargs))\n        return next(self.responses)\n\n\ndef test_local_base_and_initialization():\n    llm = FakeLLM([])\n    registry = ToolRegistry()\n    config = Config(debug=True)\n    agent = ReActAgent(\"test\", llm, registry, system_prompt=\"system\", config=config)\n\n    assert ReActAgent.__bases__ == (Agent,)\n    assert agent.llm is llm\n    assert agent.tool_registry is registry\n    assert agent.config is config\n    assert agent.system_prompt == \"system\"\n    assert agent.get_history() == []\n\n\ndef test_direct_finish_and_local_message_history():\n    llm = FakeLLM([\"Thought: ready\\nAction: Finish[answer]\"])\n    agent = ReActAgent(\"test\", llm, ToolRegistry())\n\n    assert agent.run(\"question\", temperature=0) == \"answer\"\n    assert llm.requests[0][1] == {\"temperature\": 0}\n    history = agent.get_history()\n    assert [(message.role, message.content) for message in history] == [\n        (\"user\", \"question\"), (\"assistant\", \"answer\")\n    ]\n    assert all(isinstance(message, Message) for message in history)\n    agent.clear_history()\n    assert agent.get_history() == []\n\n\ndef test_calculator_result_reaches_next_model_request():\n    llm = FakeLLM([\n        \"Thought: calculate\\nAction: calculator[15 * 8 + 32]\",\n        \"Thought: done\\nAction: Finish[152]\",\n    ])\n    registry = ToolRegistry()\n    registry.register_tool(CalculatorTool())\n    agent = ReActAgent(\"test\", llm, registry)\n\n    assert agent.run(\"calculate\") == \"152\"\n    assert \"Observation: 152\" in llm.requests[1][0][0][\"content\"]\n    assert len(agent.get_history()) == 2\n\n\ndef test_step_limit_and_current_task_reset():\n    llm = FakeLLM([\n        \"Thought: working\\nAction: echo[first]\",\n        \"Thought: done\\nAction: Finish[second]\",\n    ])\n    registry = ToolRegistry()\n    registry.register_function(\"echo\", \"echo input\", lambda text: text)\n    agent = ReActAgent(\"test\", llm, registry, max_steps=1)\n\n    assert agent.run(\"first question\") == \"抱歉，我无法在限定步数内完成这个任务。\"\n    assert len(llm.requests) == 1\n    assert agent.current_history\n    assert agent.run(\"second question\") == \"second\"\n    assert agent.current_history == []\n    assert \"Observation: first\" not in llm.requests[1][0][0][\"content\"]\n\n\n@pytest.mark.parametrize(\"text, expected\", [\n    (\"Thought: reason\\nAction: Finish[done]\", (\"reason\", \"Finish[done]\")),\n    (\"Thought: reason\", (\"reason\", None)),\n    (\"unstructured response\", (None, None)),\n])\ndef test_output_parser(text, expected):\n    agent = ReActAgent(\"test\", FakeLLM([]), ToolRegistry())\n\n    assert agent._parse_output(text) == expected\n\n\ndef test_action_parser_and_finish_input():\n    agent = ReActAgent(\"test\", FakeLLM([]), ToolRegistry())\n\n    assert agent._parse_action(\"calculator[sqrt(16)]\") == (\"calculator\", \"sqrt(16)\")\n    assert agent._parse_action_input(\"Finish[answer]\") == \"answer\"\n    assert agent._parse_action(\"invalid\") == (None, None)\n    assert agent._parse_action_input(\"invalid\") == \"\"\n",
+    "symbols": {
+      "FakeLLM": {
+        "start": 13,
+        "end": 22,
+        "doc": ""
+      },
+      "FakeLLM.__init__": {
+        "start": 16,
+        "end": 18,
+        "doc": ""
+      },
+      "FakeLLM.invoke": {
+        "start": 20,
+        "end": 22,
+        "doc": ""
+      },
+      "test_local_base_and_initialization": {
+        "start": 25,
+        "end": 36,
+        "doc": ""
+      },
+      "test_direct_finish_and_local_message_history": {
+        "start": 39,
+        "end": 51,
+        "doc": ""
+      },
+      "test_calculator_result_reaches_next_model_request": {
+        "start": 54,
+        "end": 65,
+        "doc": ""
+      },
+      "test_step_limit_and_current_task_reset": {
+        "start": 68,
+        "end": 82,
+        "doc": ""
+      },
+      "test_output_parser": {
+        "start": 85,
+        "end": 93,
+        "doc": ""
+      },
+      "test_action_parser_and_finish_input": {
+        "start": 96,
+        "end": 102,
+        "doc": ""
+      }
+    },
+    "calls": [
+      {
+        "line": 26,
+        "start": 10,
+        "end": 17,
+        "file": "test/test_react_agent.py",
+        "symbol": "FakeLLM.__init__"
+      },
+      {
+        "line": 27,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 28,
+        "start": 13,
+        "end": 19,
+        "file": "core/config.py",
+        "symbol": "Config"
+      },
+      {
+        "line": 29,
+        "start": 12,
+        "end": 22,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.__init__"
+      },
+      {
+        "line": 36,
+        "start": 11,
+        "end": 28,
+        "file": "core/agent.py",
+        "symbol": "Agent.get_history"
+      },
+      {
+        "line": 40,
+        "start": 10,
+        "end": 17,
+        "file": "test/test_react_agent.py",
+        "symbol": "FakeLLM.__init__"
+      },
+      {
+        "line": 41,
+        "start": 12,
+        "end": 22,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.__init__"
+      },
+      {
+        "line": 41,
+        "start": 36,
+        "end": 48,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 43,
+        "start": 11,
+        "end": 20,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.run"
+      },
+      {
+        "line": 45,
+        "start": 14,
+        "end": 31,
+        "file": "core/agent.py",
+        "symbol": "Agent.get_history"
+      },
+      {
+        "line": 50,
+        "start": 4,
+        "end": 23,
+        "file": "core/agent.py",
+        "symbol": "Agent.clear_history"
+      },
+      {
+        "line": 51,
+        "start": 11,
+        "end": 28,
+        "file": "core/agent.py",
+        "symbol": "Agent.get_history"
+      },
+      {
+        "line": 55,
+        "start": 10,
+        "end": 17,
+        "file": "test/test_react_agent.py",
+        "symbol": "FakeLLM.__init__"
+      },
+      {
+        "line": 59,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 60,
+        "start": 4,
+        "end": 26,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_tool"
+      },
+      {
+        "line": 60,
+        "start": 27,
+        "end": 41,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.__init__"
+      },
+      {
+        "line": 61,
+        "start": 12,
+        "end": 22,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.__init__"
+      },
+      {
+        "line": 63,
+        "start": 11,
+        "end": 20,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.run"
+      },
+      {
+        "line": 65,
+        "start": 15,
+        "end": 32,
+        "file": "core/agent.py",
+        "symbol": "Agent.get_history"
+      },
+      {
+        "line": 69,
+        "start": 10,
+        "end": 17,
+        "file": "test/test_react_agent.py",
+        "symbol": "FakeLLM.__init__"
+      },
+      {
+        "line": 73,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 74,
+        "start": 4,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_function"
+      },
+      {
+        "line": 75,
+        "start": 12,
+        "end": 22,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.__init__"
+      },
+      {
+        "line": 77,
+        "start": 11,
+        "end": 20,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.run"
+      },
+      {
+        "line": 80,
+        "start": 11,
+        "end": 20,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.run"
+      },
+      {
+        "line": 91,
+        "start": 12,
+        "end": 22,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.__init__"
+      },
+      {
+        "line": 91,
+        "start": 31,
+        "end": 38,
+        "file": "test/test_react_agent.py",
+        "symbol": "FakeLLM.__init__"
+      },
+      {
+        "line": 91,
+        "start": 44,
+        "end": 56,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 93,
+        "start": 11,
+        "end": 30,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_output"
+      },
+      {
+        "line": 97,
+        "start": 12,
+        "end": 22,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.__init__"
+      },
+      {
+        "line": 97,
+        "start": 31,
+        "end": 38,
+        "file": "test/test_react_agent.py",
+        "symbol": "FakeLLM.__init__"
+      },
+      {
+        "line": 97,
+        "start": 44,
+        "end": 56,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 99,
+        "start": 11,
+        "end": 30,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action"
+      },
+      {
+        "line": 100,
+        "start": 11,
+        "end": 36,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action_input"
+      },
+      {
+        "line": 101,
+        "start": 11,
+        "end": 30,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action"
+      },
+      {
+        "line": 102,
+        "start": 11,
+        "end": 36,
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action_input"
       }
     ],
     "origin": "project"
   },
   "test/test_calculator.py": {
-    "code": "# test_my_calculator.py\nfrom dotenv import load_dotenv\nfrom tools.calculator_tool import create_calculator_registry\nfrom core.llm import create_llm\n\n# 加载环境变量\nload_dotenv()\n\ndef test_calculator_tool():\n    \"\"\"测试自定义计算器工具\"\"\"\n\n    # 创建包含计算器的注册表\n    registry = create_calculator_registry()\n\n    print(\"🧪 测试自定义计算器工具\\n\")\n\n    # 简单测试用例\n    test_cases = [\n        \"2 + 3\",           # 基本加法\n        \"10 - 4\",          # 基本减法\n        \"5 * 6\",           # 基本乘法\n        \"15 / 3\",          # 基本除法\n        \"sqrt(16)\",        # 平方根\n    ]\n\n    for i, expression in enumerate(test_cases, 1):\n        print(f\"测试 {i}: {expression}\")\n        result = registry.execute_tool(\"my_calculator\", expression)\n        print(f\"结果: {result}\\n\")\n\ndef test_with_simple_agent():\n    \"\"\"测试与SimpleAgent的集成\"\"\"\n    \n    # 创建LLM客户端\n    llm = create_llm()\n\n    # 创建包含计算器的注册表\n    registry = create_calculator_registry()\n\n    print(\"🤖 与SimpleAgent集成测试:\")\n\n    # 模拟SimpleAgent使用工具的场景\n    user_question = \"请帮我计算 sqrt(16) + 2 * 3\"\n\n    print(f\"用户问题: {user_question}\")\n\n    # 使用工具计算\n    calc_result = registry.execute_tool(\"my_calculator\", \"sqrt(16) + 2 * 3\")\n    print(f\"计算结果: {calc_result}\")\n\n    # 构建最终回答\n    final_messages = [\n        {\"role\": \"user\", \"content\": f\"计算结果是 {calc_result}，请用自然语言回答用户的问题:{user_question}\"}\n    ]\n\n    print(\"\\n🎯 SimpleAgent的回答:\")\n    response = llm.think(final_messages)\n    for chunk in response:\n        print(chunk, end=\"\", flush=True)\n    print(\"\\n\")\n\nif __name__ == \"__main__\":\n    test_calculator_tool()\n    test_with_simple_agent()\n",
+    "code": "# test_calculate.py\nfrom dotenv import load_dotenv\nfrom tools.calculator_tool import create_calculator_registry\nfrom core.llm import create_llm\n\n# 加载环境变量\nload_dotenv()\n\ndef test_calculator_tool():\n    \"\"\"测试自定义计算器工具\"\"\"\n\n    # 创建包含计算器的注册表\n    registry = create_calculator_registry()\n\n    print(\"🧪 测试自定义计算器工具\\n\")\n\n    # 简单测试用例\n    test_cases = [\n        \"2 + 3\",           # 基本加法\n        \"10 - 4\",          # 基本减法\n        \"5 * 6\",           # 基本乘法\n        \"15 / 3\",          # 基本除法\n        \"sqrt(16)\",        # 平方根\n    ]\n\n    for i, expression in enumerate(test_cases, 1):\n        print(f\"测试 {i}: {expression}\")\n        result = registry.execute_tool(\"calculate\", expression)\n        print(f\"结果: {result}\\n\")\n\ndef test_calculator_with_llm():\n    \"\"\"计算器执行后由LLM组织回答，不创建Agent\"\"\"\n    \n    # 创建LLM客户端\n    llm = create_llm()\n\n    # 创建包含计算器的注册表\n    registry = create_calculator_registry()\n\n    print(\"🤖 计算器与LLM编排测试:\")\n\n    # 手动编排工具调用与模型回答\n    user_question = \"请帮我计算 sqrt(16) + 2 * 3\"\n\n    print(f\"用户问题: {user_question}\")\n\n    # 使用工具计算\n    calc_result = registry.execute_tool(\"calculate\", \"sqrt(16) + 2 * 3\")\n    print(f\"计算结果: {calc_result}\")\n\n    # 构建最终回答\n    final_messages = [\n        {\"role\": \"user\", \"content\": f\"计算结果是 {calc_result}，请用自然语言回答用户的问题:{user_question}\"}\n    ]\n\n    print(\"\\n🎯 模型回答:\")\n    response = llm.think(final_messages)\n    for chunk in response:\n        print(chunk, end=\"\", flush=True)\n    print(\"\\n\")\n\nif __name__ == \"__main__\":\n    test_calculator_tool()\n    test_calculator_with_llm()\n",
     "symbols": {
       "test_calculator_tool": {
         "start": 9,
         "end": 29,
         "doc": "测试自定义计算器工具"
       },
-      "test_with_simple_agent": {
+      "test_calculator_with_llm": {
         "start": 31,
         "end": 60,
-        "doc": "测试与SimpleAgent的集成"
+        "doc": "计算器执行后由LLM组织回答，不创建Agent"
       }
     },
     "calls": [
@@ -476,6 +1845,13 @@
         "end": 41,
         "file": "tools/calculator_tool.py",
         "symbol": "create_calculator_registry"
+      },
+      {
+        "line": 28,
+        "start": 17,
+        "end": 38,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
       },
       {
         "line": 35,
@@ -499,6 +1875,13 @@
         "symbol": "ToolRegistry.execute_tool"
       },
       {
+        "line": 57,
+        "start": 15,
+        "end": 24,
+        "file": "core/llm.py",
+        "symbol": "LLM.think"
+      },
+      {
         "line": 63,
         "start": 4,
         "end": 24,
@@ -508,16 +1891,650 @@
       {
         "line": 64,
         "start": 4,
-        "end": 26,
+        "end": 28,
         "file": "test/test_calculator.py",
-        "symbol": "test_with_simple_agent"
+        "symbol": "test_calculator_with_llm"
+      }
+    ],
+    "origin": "project"
+  },
+  "test/test_calculator_tool.py": {
+    "code": "\"\"\"本地计算器对象与函数工具的离线测试。\"\"\"\n\nimport pytest\n\nfrom tools.base import Tool\nfrom tools.calculator_tool import CalculatorTool, create_calculator_registry\n\n\n@pytest.mark.parametrize(\"expression, expected\", [\n    (\"15 * 8 + 32\", \"152\"),\n    (\"(2 + 3) * 4\", \"20\"),\n    (\"sqrt(16) + 2 * 3\", \"10.0\"),\n])\ndef test_calculator_object_execution(expression, expected):\n    tool = CalculatorTool()\n\n    assert isinstance(tool, Tool)\n    assert tool.name == \"calculator\"\n    assert tool.run({\"input\": expression}) == expected\n\n\ndef test_expression_parameter_compatibility():\n    tool = CalculatorTool()\n\n    assert tool.run({\"expression\": \"2 + 3\"}) == \"5\"\n    assert tool.run({\"input\": \"\", \"expression\": \"2 + 3\"}) == \"5\"\n    assert tool.run({\"input\": \"2 + 3\", \"expression\": \"9 + 9\"}) == \"5\"\n\n\ndef test_missing_input_and_calculation_errors():\n    tool = CalculatorTool()\n\n    assert tool.run({}) == \"计算表达式不能为空\"\n    assert tool.run({\"input\": \"   \"}) == \"计算表达式不能为空\"\n    assert tool.run({\"input\": \"1 / 0\"}).startswith(\"计算失败:\")\n    assert tool.run({\"input\": \"2 +\"}).startswith(\"计算失败:\")\n\n\ndef test_calculator_parameters_match_run_input():\n    parameters = CalculatorTool().get_parameters()\n\n    assert len(parameters) == 1\n    assert parameters[0].name == \"input\"\n    assert parameters[0].type == \"string\"\n    assert parameters[0].required is True\n\n\ndef test_object_and_existing_function_registration():\n    registry = create_calculator_registry()\n    tool = CalculatorTool()\n    registry.register_tool(tool)\n\n    assert registry.execute_tool(\"calculate\", \"sqrt(16)\") == \"4.0\"\n    assert registry.execute_tool(\"calculator\", \"15 * 8 + 32\") == \"152\"\n    assert registry.get_tool(\"calculator\") is tool\n    assert registry.list_tools() == [\"calculator\", \"calculate\"]\n    assert registry.unregister_tool(\"calculator\") is True\n    assert registry.execute_tool(\"calculate\", \"2 + 3\") == \"5\"\n",
+    "symbols": {
+      "test_calculator_object_execution": {
+        "start": 9,
+        "end": 19,
+        "doc": ""
+      },
+      "test_expression_parameter_compatibility": {
+        "start": 22,
+        "end": 27,
+        "doc": ""
+      },
+      "test_missing_input_and_calculation_errors": {
+        "start": 30,
+        "end": 36,
+        "doc": ""
+      },
+      "test_calculator_parameters_match_run_input": {
+        "start": 39,
+        "end": 45,
+        "doc": ""
+      },
+      "test_object_and_existing_function_registration": {
+        "start": 48,
+        "end": 58,
+        "doc": ""
+      }
+    },
+    "calls": [
+      {
+        "line": 15,
+        "start": 11,
+        "end": 25,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.__init__"
+      },
+      {
+        "line": 19,
+        "start": 11,
+        "end": 19,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.run"
+      },
+      {
+        "line": 23,
+        "start": 11,
+        "end": 25,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.__init__"
+      },
+      {
+        "line": 25,
+        "start": 11,
+        "end": 19,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.run"
+      },
+      {
+        "line": 26,
+        "start": 11,
+        "end": 19,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.run"
+      },
+      {
+        "line": 27,
+        "start": 11,
+        "end": 19,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.run"
+      },
+      {
+        "line": 31,
+        "start": 11,
+        "end": 25,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.__init__"
+      },
+      {
+        "line": 33,
+        "start": 11,
+        "end": 19,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.run"
+      },
+      {
+        "line": 34,
+        "start": 11,
+        "end": 19,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.run"
+      },
+      {
+        "line": 35,
+        "start": 11,
+        "end": 19,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.run"
+      },
+      {
+        "line": 36,
+        "start": 11,
+        "end": 19,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.run"
+      },
+      {
+        "line": 40,
+        "start": 17,
+        "end": 48,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.get_parameters"
+      },
+      {
+        "line": 40,
+        "start": 17,
+        "end": 31,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.__init__"
+      },
+      {
+        "line": 49,
+        "start": 15,
+        "end": 41,
+        "file": "tools/calculator_tool.py",
+        "symbol": "create_calculator_registry"
+      },
+      {
+        "line": 50,
+        "start": 11,
+        "end": 25,
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.__init__"
+      },
+      {
+        "line": 51,
+        "start": 4,
+        "end": 26,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_tool"
+      },
+      {
+        "line": 53,
+        "start": 11,
+        "end": 32,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 54,
+        "start": 11,
+        "end": 32,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 55,
+        "start": 11,
+        "end": 28,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tool"
+      },
+      {
+        "line": 56,
+        "start": 11,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.list_tools"
+      },
+      {
+        "line": 57,
+        "start": 11,
+        "end": 35,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.unregister_tool"
+      },
+      {
+        "line": 58,
+        "start": 11,
+        "end": 32,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      }
+    ],
+    "origin": "project"
+  },
+  "test/test_tool_registry.py": {
+    "code": "\"\"\"本地工具注册表的离线测试，不访问模型或搜索服务。\"\"\"\n\nimport pytest\n\nfrom tools.base import Tool, ToolParameter\nfrom tools.registry import ToolRegistry\n\n\nclass EchoTool(Tool):\n    def __init__(self, name=\"echo\"):\n        super().__init__(name, \"返回输入文本\")\n\n    def run(self, parameters):\n        return parameters[\"input\"]\n\n    def get_parameters(self):\n        return [ToolParameter(name=\"input\", type=\"string\", description=\"输入文本\")]\n\n\ndef test_object_tool_lookup_execution_and_removal():\n    registry = ToolRegistry()\n    tool = EchoTool()\n    registry.register_tool(tool)\n\n    assert registry.get_tool(\"echo\") is tool\n    assert registry.execute_tool(\"echo\", \"hello\") == \"hello\"\n    assert registry.list_tools() == [\"echo\"]\n    assert \"echo\" in registry.get_tools_description()\n    assert registry.unregister_tool(\"echo\") is True\n    assert registry.get_tool(\"echo\") is None\n    assert registry.list_tools() == []\n\n\ndef test_function_tool_keeps_string_input_and_can_be_removed():\n    registry = ToolRegistry()\n    registry.register_function(\"uppercase\", \"转大写\", str.upper)\n\n    assert registry.execute_tool(\"uppercase\", \"hello\") == \"HELLO\"\n    assert registry.get_tool(\"uppercase\") is None\n    assert registry.list_tools() == [\"uppercase\"]\n    assert registry.unregister_tool(\"uppercase\") is True\n    assert registry.list_tools() == []\n\n\ndef test_missing_tool():\n    registry = ToolRegistry()\n\n    assert registry.get_tool(\"missing\") is None\n    assert registry.execute_tool(\"missing\", \"hello\") == \"工具不存在: missing\"\n    assert registry.unregister_tool(\"missing\") is False\n\n\ndef test_same_name_prefers_object_and_removes_both_registrations():\n    registry = ToolRegistry()\n    registry.register_function(\"echo\", \"函数工具\", lambda text: \"function\")\n    registry.register_tool(EchoTool())\n\n    assert registry.execute_tool(\"echo\", \"object\") == \"object\"\n    assert registry.list_tools() == [\"echo\"]\n    assert registry.unregister_tool(\"echo\") is True\n    assert registry.execute_tool(\"echo\", \"hello\") == \"工具不存在: echo\"\n    assert registry.list_tools() == []\n\n\ndef test_tool_exception_is_not_hidden():\n    def fail(text):\n        raise ValueError(\"工具执行失败\")\n\n    registry = ToolRegistry()\n    registry.register_function(\"fail\", \"抛出异常\", fail)\n\n    with pytest.raises(ValueError, match=\"工具执行失败\"):\n        registry.execute_tool(\"fail\", \"hello\")\n",
+    "symbols": {
+      "EchoTool": {
+        "start": 9,
+        "end": 17,
+        "doc": ""
+      },
+      "EchoTool.__init__": {
+        "start": 10,
+        "end": 11,
+        "doc": ""
+      },
+      "EchoTool.run": {
+        "start": 13,
+        "end": 14,
+        "doc": ""
+      },
+      "EchoTool.get_parameters": {
+        "start": 16,
+        "end": 17,
+        "doc": ""
+      },
+      "test_object_tool_lookup_execution_and_removal": {
+        "start": 20,
+        "end": 31,
+        "doc": ""
+      },
+      "test_function_tool_keeps_string_input_and_can_be_removed": {
+        "start": 34,
+        "end": 42,
+        "doc": ""
+      },
+      "test_missing_tool": {
+        "start": 45,
+        "end": 50,
+        "doc": ""
+      },
+      "test_same_name_prefers_object_and_removes_both_registrations": {
+        "start": 53,
+        "end": 62,
+        "doc": ""
+      },
+      "test_tool_exception_is_not_hidden": {
+        "start": 65,
+        "end": 73,
+        "doc": ""
+      }
+    },
+    "calls": [
+      {
+        "line": 9,
+        "start": 15,
+        "end": 19,
+        "file": "tools/base.py",
+        "symbol": "Tool"
+      },
+      {
+        "line": 11,
+        "start": 8,
+        "end": 24,
+        "file": "tools/base.py",
+        "symbol": "Tool.__init__"
+      },
+      {
+        "line": 17,
+        "start": 16,
+        "end": 29,
+        "file": "tools/base.py",
+        "symbol": "ToolParameter"
+      },
+      {
+        "line": 21,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 22,
+        "start": 11,
+        "end": 19,
+        "file": "test/test_tool_registry.py",
+        "symbol": "EchoTool.__init__"
+      },
+      {
+        "line": 23,
+        "start": 4,
+        "end": 26,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_tool"
+      },
+      {
+        "line": 25,
+        "start": 11,
+        "end": 28,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tool"
+      },
+      {
+        "line": 26,
+        "start": 11,
+        "end": 32,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 27,
+        "start": 11,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.list_tools"
       },
       {
         "line": 28,
+        "start": 21,
+        "end": 51,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tools_description"
+      },
+      {
+        "line": 29,
+        "start": 11,
+        "end": 35,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.unregister_tool"
+      },
+      {
+        "line": 30,
+        "start": 11,
+        "end": 28,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tool"
+      },
+      {
+        "line": 31,
+        "start": 11,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.list_tools"
+      },
+      {
+        "line": 35,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 36,
+        "start": 4,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_function"
+      },
+      {
+        "line": 38,
+        "start": 11,
+        "end": 32,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 39,
+        "start": 11,
+        "end": 28,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tool"
+      },
+      {
+        "line": 40,
+        "start": 11,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.list_tools"
+      },
+      {
+        "line": 41,
+        "start": 11,
+        "end": 35,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.unregister_tool"
+      },
+      {
+        "line": 42,
+        "start": 11,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.list_tools"
+      },
+      {
+        "line": 46,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 48,
+        "start": 11,
+        "end": 28,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tool"
+      },
+      {
+        "line": 49,
+        "start": 11,
+        "end": 32,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 50,
+        "start": 11,
+        "end": 35,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.unregister_tool"
+      },
+      {
+        "line": 54,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 55,
+        "start": 4,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_function"
+      },
+      {
+        "line": 56,
+        "start": 4,
+        "end": 26,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_tool"
+      },
+      {
+        "line": 56,
+        "start": 27,
+        "end": 35,
+        "file": "test/test_tool_registry.py",
+        "symbol": "EchoTool.__init__"
+      },
+      {
+        "line": 58,
+        "start": 11,
+        "end": 32,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 59,
+        "start": 11,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.list_tools"
+      },
+      {
+        "line": 60,
+        "start": 11,
+        "end": 35,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.unregister_tool"
+      },
+      {
+        "line": 61,
+        "start": 11,
+        "end": 32,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 62,
+        "start": 11,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.list_tools"
+      },
+      {
+        "line": 69,
+        "start": 15,
+        "end": 27,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.__init__"
+      },
+      {
+        "line": 70,
+        "start": 4,
+        "end": 30,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_function"
+      },
+      {
+        "line": 73,
+        "start": 8,
+        "end": 29,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool"
+      }
+    ],
+    "origin": "project"
+  },
+  "test/test_reflection_agent.py": {
+    "code": "# test_reflection_agent.py\nfrom agents.reflection_agent import ReflectionAgent\nfrom core.llm import create_llm\n\n\n# 创建LLM实例\nllm = create_llm()\n\n# 使用默认通用提示词\ngeneral_agent = ReflectionAgent(name=\"我的反思助手\", llm=llm)\n\n# 使用自定义代码生成提示词（类似第四章）\ncode_prompts = {\n    \"initial\": \"你是Python专家，请编写函数:{task}\",\n    \"reflect\": \"请审查代码的算法效率:\\n任务:{task}\\n代码:{content}\\n\"\n               \"如果代码已经满足要求，请仅输出\\\"无需改进\\\"，不要添加标点、解释或其他文字。\"\n               \"否则请指出具体问题和改进建议。\",\n    \"refine\": \"请根据反馈优化代码:\\n任务:{task}\\n反馈:{feedback}\"\n}\ncode_agent = ReflectionAgent(\n    name=\"我的代码生成助手\",\n    llm=llm,\n    custom_prompts=code_prompts\n)\n\nresult = code_agent.run(\"编写一个函数，接收整数列表，返回去重后按升序排列的列表\")\n\nprint(f\"最终结果: {result}\")\n",
+    "symbols": {},
+    "calls": [
+      {
+        "line": 7,
+        "start": 6,
+        "end": 16,
+        "file": "core/llm.py",
+        "symbol": "create_llm"
+      },
+      {
+        "line": 10,
+        "start": 16,
+        "end": 31,
+        "file": "agents/reflection_agent.py",
+        "symbol": "ReflectionAgent.__init__"
+      },
+      {
+        "line": 20,
+        "start": 13,
+        "end": 28,
+        "file": "agents/reflection_agent.py",
+        "symbol": "ReflectionAgent.__init__"
+      },
+      {
+        "line": 26,
+        "start": 9,
+        "end": 23,
+        "file": "agents/reflection_agent.py",
+        "symbol": "ReflectionAgent.run"
+      }
+    ],
+    "origin": "project"
+  },
+  "test/test_plan_solve_agent.py": {
+    "code": "# test_plan_solve_agent.py\nfrom agents.plan_solve_agent import PlanAndSolveAgent\nfrom core.llm import create_llm\n\n# 创建LLM实例\nllm = create_llm()\n\n# 创建自定义PlanAndSolveAgent\n# agent = PlanAndSolveAgent(\n#     name=\"我的规划执行助手\",\n#     llm=llm\n# )\nagent = PlanAndSolveAgent(llm_client=llm)\n\n# 测试复杂问题\nquestion = \"一个水果店周一卖出了15个苹果。周二卖出的苹果数量是周一的两倍。周三卖出的数量比周二少了5个。请问这三天总共卖出了多少个苹果？\"\n\nresult = agent.run(question)\nprint(f\"\\n最终结果: {result}\")\n",
+    "symbols": {},
+    "calls": [
+      {
+        "line": 6,
+        "start": 6,
+        "end": 16,
+        "file": "core/llm.py",
+        "symbol": "create_llm"
+      },
+      {
+        "line": 13,
+        "start": 8,
+        "end": 25,
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "PlanAndSolveAgent.__init__"
+      },
+      {
+        "line": 18,
+        "start": 9,
+        "end": 18,
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "PlanAndSolveAgent.run"
+      }
+    ],
+    "origin": "project"
+  },
+  "test/test_advanced_search.py": {
+    "code": "# test_advanced_search.py\nfrom tools.advanced_search import create_advanced_search_registry, AdvancedSearchTool\nfrom dotenv import load_dotenv\n\n# 加载环境变量\nload_dotenv()\n\ndef test_advanced_search():\n    \"\"\"测试高级搜索工具\"\"\"\n\n    # 创建包含高级搜索工具的注册表\n    registry = create_advanced_search_registry()\n\n    print(\"🔍 测试高级搜索工具\\n\")\n\n    # 测试查询\n    test_queries = [\n        \"Python编程语言的历史\",\n        \"人工智能的最新发展\",\n        \"2024年科技趋势\"\n    ]\n\n    for i, query in enumerate(test_queries, 1):\n        print(f\"测试 {i}: {query}\")\n        result = registry.execute_tool(\"advanced_search\", query)\n        print(f\"结果: {result}\\n\")\n        print(\"-\" * 60 + \"\\n\")\n\ndef test_direct_search():\n    \"\"\"直接创建搜索实例并执行查询\"\"\"\n    print(\"🔍 直接搜索测试:\")\n\n    # 直接创建搜索工具实例\n    search_tool = AdvancedSearchTool()\n\n    # 如果没有配置API，会显示配置提示\n    result = search_tool.search(\"机器学习算法\")\n    print(f\"搜索结果: {result}\")\n\ndef test_tool_description():\n    \"\"\"查看已注册的工具描述，不创建Agent\"\"\"\n    print(\"\\n🔧 工具描述检查:\")\n\n    # 显示工具描述\n    registry = create_advanced_search_registry()\n    tools_desc = registry.get_tools_description()\n    print(f\"工具描述:\\n{tools_desc}\")\n\nif __name__ == \"__main__\":\n    test_advanced_search()\n    test_direct_search()\n    test_tool_description()\n",
+    "symbols": {
+      "test_advanced_search": {
+        "start": 8,
+        "end": 27,
+        "doc": "测试高级搜索工具"
+      },
+      "test_direct_search": {
+        "start": 29,
+        "end": 38,
+        "doc": "直接创建搜索实例并执行查询"
+      },
+      "test_tool_description": {
+        "start": 40,
+        "end": 47,
+        "doc": "查看已注册的工具描述，不创建Agent"
+      }
+    },
+    "calls": [
+      {
+        "line": 12,
+        "start": 15,
+        "end": 46,
+        "file": "tools/advanced_search.py",
+        "symbol": "create_advanced_search_registry"
+      },
+      {
+        "line": 25,
         "start": 17,
         "end": 38,
         "file": "tools/registry.py",
         "symbol": "ToolRegistry.execute_tool"
+      },
+      {
+        "line": 34,
+        "start": 18,
+        "end": 36,
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool.__init__"
+      },
+      {
+        "line": 37,
+        "start": 13,
+        "end": 31,
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool.search"
+      },
+      {
+        "line": 45,
+        "start": 15,
+        "end": 46,
+        "file": "tools/advanced_search.py",
+        "symbol": "create_advanced_search_registry"
+      },
+      {
+        "line": 46,
+        "start": 17,
+        "end": 47,
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.get_tools_description"
+      },
+      {
+        "line": 50,
+        "start": 4,
+        "end": 24,
+        "file": "test/test_advanced_search.py",
+        "symbol": "test_advanced_search"
+      },
+      {
+        "line": 51,
+        "start": 4,
+        "end": 22,
+        "file": "test/test_advanced_search.py",
+        "symbol": "test_direct_search"
+      },
+      {
+        "line": 52,
+        "start": 4,
+        "end": 25,
+        "file": "test/test_advanced_search.py",
+        "symbol": "test_tool_description"
       }
     ],
     "origin": "project"

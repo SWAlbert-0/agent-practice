@@ -9,8 +9,8 @@ export class DiagramViewer {
     this.stage=root.querySelector('#diagram-stage');this.viewport=root.querySelector('#diagram-viewport');
     this.select=root.querySelector('#diagram-scene');
     this.select.onchange=()=>this.show(this.select.value);
-    root.querySelector('#diagram-minus').onclick=()=>this.zoom(this.state.zoom/1.2);
-    root.querySelector('#diagram-plus').onclick=()=>this.zoom(this.state.zoom*1.2);
+    root.querySelector('#diagram-minus').onclick=()=>{if(this.state)this.zoom(this.state.zoom/1.2);};
+    root.querySelector('#diagram-plus').onclick=()=>{if(this.state)this.zoom(this.state.zoom*1.2);};
     root.querySelector('#diagram-scale').onclick=()=>this.zoom(1);
     root.querySelector('#diagram-fit').onclick=()=>this.fit();
     root.querySelector('#diagram-copy').onclick=async()=>{try{await navigator.clipboard.writeText(this.scene.code);root.querySelector('#diagram-copy').textContent='已复制';}catch{root.querySelector('#diagram-copy').textContent='请选中下方定义复制';}};

@@ -1,6 +1,6 @@
 # test_simple_agent.py
-from hello_agents import HelloAgentsLLM, ToolRegistry
-from hello_agents.tools import CalculatorTool
+from tools.registry import ToolRegistry
+from tools.calculator_tool import CalculatorTool
 from agents.simple_agent import SimpleAgent
 from core.llm import create_llm
 

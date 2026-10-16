@@ -1,10 +1,527 @@
 [
-  {"id":"configuration","title":"模型配置解析","kind":"流程图","document":"docs/flows/核心代码流程.md","block":0,"description":"从服务配置到 HelloAgentsLLM；显式解析地址、模型和凭证。","sources":[{"file":"core/llm.py","symbol":"create_llm","label":"create_llm","match":"create_llm"},{"file":"hello_agents/core/llm.py","symbol":"HelloAgentsLLM.__init__","label":"客户端初始化","match":"HelloAgentsLLM"}]},
-  {"id":"main","title":"main 流式请求","kind":"时序图","document":"docs/flows/核心代码流程.md","block":1,"description":"main 直接请求模型，生成器开始迭代后才发送请求。","sources":[{"file":"main.py","symbol":"","label":"main.py","match":"main.py"},{"file":"core/llm.py","symbol":"create_llm","label":"create_llm","match":"create_llm"},{"file":"hello_agents/core/llm.py","symbol":"HelloAgentsLLM.think","label":"think","match":"HelloAgentsLLM"}]},
-  {"id":"simple","title":"Agent 普通对话","kind":"时序图","document":"docs/flows/核心代码流程.md","block":2,"description":"无工具分支：组织上下文、invoke、保存历史。","sources":[{"file":"agents/simple_agent.py","symbol":"SimpleAgent.run","label":"run","match":"自定义 SimpleAgent"},{"file":"hello_agents/core/agent.py","symbol":"Agent.get_history","label":"get_history","match":"get_history()"},{"file":"hello_agents/core/llm.py","symbol":"HelloAgentsLLM.invoke","label":"invoke","match":"invoke(messages)"},{"file":"hello_agents/core/agent.py","symbol":"Agent.add_message","label":"add_message","match":"add_message"},{"file":"test/test_simple_agent.py","symbol":"","label":"真实 Agent 测试"}]},
-  {"id":"tool-loop","title":"Agent 工具循环","kind":"流程图","document":"docs/flows/核心代码流程.md","block":3,"description":"文本工具协议的解析、调度、结果回传与迭代上限。","sources":[{"file":"agents/simple_agent.py","symbol":"SimpleAgent.run","label":"run","match":"run 组织"},{"file":"agents/simple_agent.py","symbol":"SimpleAgent._run_with_tool_calling","label":"工具循环","match":"_run_with_tool_calling"},{"file":"agents/simple_agent.py","symbol":"SimpleAgent._parse_tool_calls","label":"解析标记","match":"_parse_tool_calls"},{"file":"agents/simple_agent.py","symbol":"SimpleAgent._execute_tool_call","label":"执行工具","match":"_execute_tool_call"},{"file":"hello_agents/tools/registry.py","symbol":"ToolRegistry.execute_tool","label":"框架注册表","match":"registry.execute_tool"},{"file":"agents/simple_agent.py","symbol":"SimpleAgent._parse_tool_parameters","label":"解析参数","match":"解析参数"}]},
-  {"id":"stream","title":"Agent 流式对话","kind":"时序图","document":"docs/flows/核心代码流程.md","block":4,"description":"逐块转发与累积回答；完整消费生成器后保存历史。","sources":[{"file":"agents/simple_agent.py","symbol":"SimpleAgent.stream_run","label":"stream_run","match":"SimpleAgent.stream_run"},{"file":"hello_agents/core/llm.py","symbol":"HelloAgentsLLM.stream_invoke","label":"stream_invoke","match":"stream_invoke(messages)"},{"file":"hello_agents/core/agent.py","symbol":"Agent.get_history","label":"get_history","match":"get_history()"}]},
-  {"id":"calculator","title":"计算器编排调用","kind":"时序图","document":"docs/计算器工具调用流程.md","description":"复用原文档：测试函数手动调用计算器，再让模型组织回答。","sources":[{"file":"test/test_calculator.py","symbol":"test_with_simple_agent","label":"测试编排","match":"测试函数"},{"file":"tools/calculator_tool.py","symbol":"create_calculator_registry","label":"创建注册表"},{"file":"tools/registry.py","symbol":"ToolRegistry.execute_tool","label":"本地注册表","match":"ToolRegistry"},{"file":"tools/calculator_tool.py","symbol":"calculate","label":"calculate","match":"计算器 calculate"},{"file":"hello_agents/core/llm.py","symbol":"HelloAgentsLLM.think","label":"think","match":"HelloAgentsLLM"}]},
-  {"id":"evaluate","title":"计算器递归求值","kind":"流程图","document":"docs/flows/核心代码流程.md","block":5,"description":"解析 AST 并递归求值；保留当前未实现分支和异常边界。","sources":[{"file":"tools/calculator_tool.py","symbol":"calculate","label":"calculate","match":"calculate expression"},{"file":"tools/calculator_tool.py","symbol":"_eval_node","label":"_eval_node","match":"_eval_node"}]},
-  {"id":"registry","title":"本地注册与调度","kind":"流程图","document":"docs/flows/核心代码流程.md","block":6,"description":"本地注册表只执行函数工具，与 Agent 使用的 SDK 注册表区分。","sources":[{"file":"tools/calculator_tool.py","symbol":"create_calculator_registry","label":"创建注册表","match":"create_calculator_registry"},{"file":"tools/registry.py","symbol":"ToolRegistry.register_function","label":"register_function","match":"register_function"},{"file":"tools/registry.py","symbol":"ToolRegistry.register_tool","label":"register_tool","match":"register_tool"},{"file":"tools/registry.py","symbol":"ToolRegistry.execute_tool","label":"execute_tool","match":"execute_tool"},{"file":"tools/base.py","symbol":"Tool","label":"本地 Tool 抽象类"}]}
+  {
+    "id": "configuration",
+    "title": "模型配置解析",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 0,
+    "description": "从服务配置创建本地 LLM；显式解析地址、模型与凭证来源。",
+    "sources": [
+      {
+        "file": "core/llm.py",
+        "symbol": "create_llm",
+        "label": "create_llm",
+        "match": "create_llm"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.__init__",
+        "label": "客户端初始化",
+        "match": "LLM"
+      }
+    ]
+  },
+  {
+    "id": "main",
+    "title": "main 流式请求",
+    "kind": "时序图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 1,
+    "description": "main 直接请求模型，生成器开始迭代后才发送请求。",
+    "sources": [
+      {
+        "file": "main.py",
+        "symbol": "",
+        "label": "main.py",
+        "match": "main.py"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "create_llm",
+        "label": "create_llm",
+        "match": "create_llm"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.think",
+        "label": "think",
+        "match": "LLM"
+      }
+    ]
+  },
+  {
+    "id": "simple",
+    "title": "Agent 普通对话",
+    "kind": "时序图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 2,
+    "description": "本地 SimpleAgent：上下文、invoke 与 core.agent.Agent 历史方法。",
+    "sources": [
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent.run",
+        "label": "run",
+        "match": "自定义 SimpleAgent"
+      },
+      {
+        "file": "core/agent.py",
+        "symbol": "Agent.get_history",
+        "label": "get_history",
+        "match": "get_history()"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.invoke",
+        "label": "invoke",
+        "match": "invoke(messages)"
+      },
+      {
+        "file": "core/agent.py",
+        "symbol": "Agent.add_message",
+        "label": "add_message",
+        "match": "add_message"
+      },
+      {
+        "file": "test/test_simple_agent.py",
+        "symbol": "",
+        "label": "真实 Agent 测试"
+      }
+    ]
+  },
+  {
+    "id": "tool-loop",
+    "title": "Agent 工具循环",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 3,
+    "description": "文本工具协议的解析、调度、结果回传与迭代上限。",
+    "sources": [
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent.run",
+        "label": "run",
+        "match": "run 组织"
+      },
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent._run_with_tool_calling",
+        "label": "工具循环",
+        "match": "_run_with_tool_calling"
+      },
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent._parse_tool_calls",
+        "label": "解析标记",
+        "match": "_parse_tool_calls"
+      },
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent._execute_tool_call",
+        "label": "执行工具",
+        "match": "_execute_tool_call"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "ToolRegistry",
+        "match": "registry.execute_tool"
+      },
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent._parse_tool_parameters",
+        "label": "解析参数",
+        "match": "解析参数"
+      }
+    ]
+  },
+  {
+    "id": "stream",
+    "title": "Agent 流式对话",
+    "kind": "时序图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 4,
+    "description": "逐块转发与累积回答；完整消费生成器后保存历史。",
+    "sources": [
+      {
+        "file": "agents/simple_agent.py",
+        "symbol": "SimpleAgent.stream_run",
+        "label": "stream_run",
+        "match": "SimpleAgent.stream_run"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.stream_invoke",
+        "label": "stream_invoke",
+        "match": "stream_invoke(messages)"
+      },
+      {
+        "file": "core/agent.py",
+        "symbol": "Agent.get_history",
+        "label": "get_history",
+        "match": "get_history()"
+      }
+    ]
+  },
+  {
+    "id": "calculator",
+    "title": "计算器编排调用",
+    "kind": "时序图",
+    "document": "docs/计算器工具调用流程.md",
+    "description": "测试手动执行 calculate，再由本地 LLM.think 组织回答。",
+    "sources": [
+      {
+        "file": "test/test_calculator.py",
+        "symbol": "test_calculator_with_llm",
+        "label": "测试编排",
+        "match": "测试函数"
+      },
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "create_calculator_registry",
+        "label": "创建注册表"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "ToolRegistry",
+        "match": "ToolRegistry"
+      },
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "calculate",
+        "label": "calculate",
+        "match": "计算器 calculate"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.think",
+        "label": "think",
+        "match": "LLM"
+      }
+    ]
+  },
+  {
+    "id": "evaluate",
+    "title": "计算器递归求值",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 5,
+    "description": "解析 AST 并递归求值；保留当前未实现分支和异常边界。",
+    "sources": [
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "CalculatorTool.run",
+        "label": "CalculatorTool.run"
+      },
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "calculate",
+        "label": "calculate",
+        "match": "calculate expression"
+      },
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "_eval_node",
+        "label": "_eval_node",
+        "match": "_eval_node"
+      }
+    ]
+  },
+  {
+    "id": "registry",
+    "title": "本地注册与调度",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 6,
+    "description": "本地注册表支持对象和函数工具；同名对象优先，工具异常直接传播。",
+    "sources": [
+      {
+        "file": "tools/calculator_tool.py",
+        "symbol": "create_calculator_registry",
+        "label": "创建注册表",
+        "match": "create_calculator_registry"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_function",
+        "label": "ToolRegistry",
+        "match": "register_function"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.register_tool",
+        "label": "ToolRegistry",
+        "match": "register_tool"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "ToolRegistry",
+        "match": "execute_tool"
+      },
+      {
+        "file": "tools/base.py",
+        "symbol": "Tool",
+        "label": "本地 Tool 抽象类"
+      }
+    ]
+  },
+  {
+    "id": "llm-request",
+    "title": "LLM 统一请求",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 7,
+    "description": "本地入口合并选项，固定响应模式，进入 SDK 请求边界。",
+    "sources": [
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.invoke",
+        "label": "invoke",
+        "match": "LLM.invoke"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.think",
+        "label": "think",
+        "match": "LLM.think"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM._request",
+        "label": "_request",
+        "match": "options 覆盖"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.__init__",
+        "label": "初始化与超时"
+      }
+    ]
+  },
+  {
+    "id": "react",
+    "title": "ReAct 推理与行动",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 8,
+    "description": "选择默认或自定义模板，再执行 Thought / Action / Observation 循环。",
+    "sources": [
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.run",
+        "label": "ReAct.run",
+        "match": "ReActAgent.run"
+      },
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent.__init__",
+        "label": "初始化与模板选择",
+        "match": "ReActAgent.__init__"
+      },
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "DEFAULT_REACT_PROMPT",
+        "label": "默认提示词模板",
+        "match": "DEFAULT_REACT_PROMPT"
+      },
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_output",
+        "label": "解析输出",
+        "match": "_parse_output"
+      },
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action",
+        "label": "解析行动",
+        "match": "_parse_action 拆分"
+      },
+      {
+        "file": "agents/react_agent.py",
+        "symbol": "ReActAgent._parse_action_input",
+        "label": "提取最终答案",
+        "match": "_parse_action_input"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "调度工具",
+        "match": "ToolRegistry.execute_tool"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.invoke",
+        "label": "invoke",
+        "match": "LLM.invoke"
+      },
+      {
+        "file": "test/test_react_agent.py",
+        "symbol": "test_calculator_result_reaches_next_model_request",
+        "label": "离线计算器验证"
+      }
+    ]
+  },
+  {
+    "id": "plan",
+    "title": "先规划再求解",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 9,
+    "description": "规划列表后由模型逐步解题，不自动执行工具。",
+    "sources": [
+      {
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "PlanAndSolveAgent.run",
+        "label": "run",
+        "match": "PlanAndSolveAgent.run"
+      },
+      {
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "Planner.plan",
+        "label": "Planner.plan",
+        "match": "Planner.plan"
+      },
+      {
+        "file": "agents/plan_solve_agent.py",
+        "symbol": "Executor.execute",
+        "label": "Executor.execute",
+        "match": "Executor.execute"
+      },
+      {
+        "file": "core/llm.py",
+        "symbol": "LLM.think",
+        "label": "think",
+        "match": "LLM.think"
+      }
+    ]
+  },
+  {
+    "id": "reflection",
+    "title": "反思与改进",
+    "kind": "流程图",
+    "document": "docs/flows/核心代码流程.md",
+    "block": 10,
+    "description": "初答、反思、完整匹配停止用语或继续改进。",
+    "sources": [
+      {
+        "file": "agents/reflection_agent.py",
+        "symbol": "ReflectionAgent.run",
+        "label": "run",
+        "match": "ReflectionAgent.run"
+      },
+      {
+        "file": "agents/reflection_agent.py",
+        "symbol": "ReflectionAgent._get_llm_response",
+        "label": "模型文本辅助方法",
+        "match": "_get_llm_response"
+      },
+      {
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.add_record",
+        "label": "记录轨迹",
+        "match": "Memory.add_record"
+      },
+      {
+        "file": "agents/reflection_agent.py",
+        "symbol": "Memory.get_last_execution",
+        "label": "最近结果",
+        "match": "Memory.get_last_execution"
+      }
+    ]
+  },
+  {
+    "id": "advanced-search",
+    "title": "高级搜索与回退",
+    "kind": "流程图",
+    "document": "docs/搜索工具与测试说明.md",
+    "block": 0,
+    "description": "绑定方法注册为函数工具，按可用搜索源顺序尝试。",
+    "sources": [
+      {
+        "file": "tools/advanced_search.py",
+        "symbol": "create_advanced_search_registry",
+        "label": "创建搜索注册表",
+        "match": "创建高级搜索注册表"
+      },
+      {
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool._setup_search_sources",
+        "label": "初始化搜索源",
+        "match": "检查密钥"
+      },
+      {
+        "file": "tools/advanced_search.py",
+        "symbol": "AdvancedSearchTool.search",
+        "label": "search",
+        "match": "按顺序尝试搜索源"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "execute_tool",
+        "match": "execute_tool"
+      }
+    ]
+  },
+  {
+    "id": "chain",
+    "title": "顺序工具链",
+    "kind": "流程图",
+    "document": "docs/工具链与异步执行说明.md",
+    "block": 0,
+    "description": "输入模板读取 context，逐步执行并传递结果；当前 Agent 未自动接入。",
+    "sources": [
+      {
+        "file": "tools/chain.py",
+        "symbol": "ToolChain.execute",
+        "label": "execute",
+        "match": "接收注册表"
+      },
+      {
+        "file": "tools/chain.py",
+        "symbol": "ToolChain.add_step",
+        "label": "add_step"
+      },
+      {
+        "file": "tools/chain.py",
+        "symbol": "ToolChainManager.execute_chain",
+        "label": "管理器执行入口"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "execute_tool",
+        "match": "registry.execute_tool"
+      }
+    ]
+  },
+  {
+    "id": "async-tools",
+    "title": "并发工具执行",
+    "kind": "时序图",
+    "document": "docs/工具链与异步执行说明.md",
+    "block": 1,
+    "description": "同步工具交给线程池，gather 按输入顺序收集。",
+    "sources": [
+      {
+        "file": "tools/async_executor.py",
+        "symbol": "AsyncToolExecutor.execute_tools_parallel",
+        "label": "并发入口",
+        "match": "await execute_tools_parallel"
+      },
+      {
+        "file": "tools/async_executor.py",
+        "symbol": "AsyncToolExecutor.execute_tool_async",
+        "label": "线程池执行",
+        "match": "run_in_executor"
+      },
+      {
+        "file": "tools/registry.py",
+        "symbol": "ToolRegistry.execute_tool",
+        "label": "注册表",
+        "match": "execute_tool(name"
+      }
+    ]
+  }
 ]

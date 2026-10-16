@@ -1,4 +1,4 @@
-import {notes,files} from './knowledge.js';
+import {notes} from './knowledge.js?v=local-architecture-2';
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -75,18 +75,15 @@ export class SourceReader {
     const summary=note.summary||(direct&&node.summary)||code?.doc||'当前源码实现。沿右侧调用链接查看依赖函数，左侧列出实际输入输出与关联。';
     const points=note.points||(direct?node?.points:[])||[];
     const relatedFlows=this.flows?.related(file,symbol)||[];
-    const framework=file.startsWith('hello_agents/');
     $('back').disabled=this.frames.length<2;
     $('detail-status').className=`status ${note.warning?'partial':'ready'}`;
-    $('detail-status').textContent=note.warning?'需注意':framework?'框架源码':'项目源码';
-    $('call-chain').innerHTML=this.frames.map((f,i)=>`<button data-depth="${i}" ${i===this.frames.length-1?'aria-current="location"':''} title="${esc(f.file)}">${esc(f.symbol||f.file)}<small>${f.file.startsWith('hello_agents/')?'框架':'项目'}</small></button>`).join('<span aria-hidden="true">›</span>');
+    $('detail-status').textContent=note.warning?'需注意':'项目源码';
+    $('call-chain').innerHTML=this.frames.map((f,i)=>`<button data-depth="${i}" ${i===this.frames.length-1?'aria-current="location"':''} title="${esc(f.file)}">${esc(f.symbol||f.file)}<small>项目</small></button>`).join('<span aria-hidden="true">›</span>');
     const calls=code?(code.source.calls||[]).filter(c=>c.line>=code.start&&c.line<=code.end):[];
     const unique=[...new Map(calls.filter(c=>key(c.file,c.symbol)!==key(file,symbol)).map(c=>[key(c.file,c.symbol),c])).values()];
-    // 展示已知的接口不匹配时，仍允许查看实际存在的替代实现。
-    if(file===files.simple&&symbol==='SimpleAgent.remove_tool')unique.push({file:files.registry,symbol:'ToolRegistry.unregister'});
     $('detail-content').innerHTML=`
       <section class="reader-notes" aria-label="功能讲解">
-        <div class="reader-heading"><span class="origin-badge ${framework?'framework':''}">${framework?'框架实现':'项目实现'}</span><h2 id="detail-title">${esc(title)}</h2><p class="reader-summary">${esc(summary)}</p></div>
+        <div class="reader-heading"><span class="origin-badge">项目实现</span><h2 id="detail-title">${esc(title)}</h2><p class="reader-summary">${esc(summary)}</p></div>
         ${node?.members?`<div class="reader-section component-members"><h3>${esc(node.title)}内的节点</h3><div class="reader-relations">${node.members.map(member=>`<button data-file="${esc(member.file)}" data-symbol="${esc(member.symbol||'')}">${esc(member.title)} ↗<small>${esc(member.file)}</small></button>`).join('')}</div></div>`:''}
         ${note.warning?`<div class="reader-warning">${esc(note.warning)}</div>`:''}
         ${relatedFlows.length?`<div class="reader-section reader-flows"><h3>相关流程图</h3><div class="reader-relations">${relatedFlows.map(s=>`<button data-diagram="${esc(s.id)}">${esc(s.title)} ↗<small>${esc(s.kind)}</small></button>`).join('')}</div></div>`:''}
