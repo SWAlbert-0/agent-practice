@@ -8,6 +8,8 @@ const definitions=[
   ['foundation','基础组件','agent',['agent','message','config','dict','run','history'],420,530,'项目内的 Agent、消息与配置'],
 ];
 
+export const isPracticeNode=node=>node.file.startsWith('examples/')||node.file.startsWith('tests/');
+
 export function createMapViews(nodes,relations){
   const fullById=Object.fromEntries(nodes.map(n=>[n.id,n]));
   const owner={};
@@ -20,16 +22,32 @@ export function createMapViews(nodes,relations){
       members:ids.map(id=>fullById[id]),status:ids.some(id=>fullById[id].status==='partial')?'partial':'ready'};
   });
   if(nodes.some(n=>!owner[n.id]))throw Error('Each node must belong to a component');
-  const compactEdges=new Map();
-  for(const [from,to,label] of relations){
-    const a=owner[from],b=owner[to];if(a===b)continue;
-    const key=`${a}>${b}`,edge=compactEdges.get(key)||{a,b,labels:[],originals:[]};
-    if(!edge.labels.includes(label))edge.labels.push(label);
-    edge.originals.push([from,to,label]);compactEdges.set(key,edge);
+  function compactRelations(items){
+    const edges=new Map();
+    for(const [from,to,label] of items){
+      const a=owner[from],b=owner[to];if(a===b)continue;
+      const key=`${a}>${b}`,edge=edges.get(key)||{a,b,labels:[],originals:[]};
+      if(!edge.labels.includes(label))edge.labels.push(label);
+      edge.originals.push([from,to,label]);edges.set(key,edge);
+    }
+    return [...edges.values()].map(edge=>[edge.a,edge.b,edge.labels.length===1?edge.labels[0]:`${edge.originals.length} 处关联`]);
   }
+  const practice=nodes.filter(isPracticeNode);
+  const business=nodes.filter(node=>!isPracticeNode(node));
+  const businessIds=new Set(business.map(node=>node.id));
+  const businessRelations=relations.filter(([from,to])=>businessIds.has(from)&&businessIds.has(to));
+  const businessGroups=groups.map(group=>({
+    ...group,members:group.members.filter(node=>businessIds.has(node.id)),
+    desc:group.id==='group-entry'?'main.py 模型调用入口':group.desc,
+  })).filter(group=>group.members.length);
   return {
-    compact:{nodes:groups,relations:[...compactEdges.values()].map(e=>[e.a,e.b,e.labels.length===1?e.labels[0]:`${e.originals.length} 处关联`])},
+    compact:{nodes:groups,relations:compactRelations(relations)},
     full:{nodes,relations},owner,
+    structure:{
+      compact:{nodes:businessGroups,relations:compactRelations(businessRelations)},
+      full:{nodes:business,relations:businessRelations},
+    },
+    practice,
     byId:{...fullById,...Object.fromEntries(groups.map(g=>[g.id,g]))},
   };
 }

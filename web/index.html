@@ -13,15 +13,21 @@
 </head>
 <body>
   <main>
-    <header class="map-header"><h1>Agent 架构与流程演示</h1><button class="outline-button" id="guide">使用指南</button></header>
+    <header class="map-header"><h1>Agent 架构与流程演示</h1><span id="sync-status" class="sync-status">正在核对源码</span><button class="outline-button" id="guide">使用指南</button></header>
 
     <div class="workbench">
       <section class="map-panel">
-        <div class="panel-toolbar"><div class="view-tabs"><button id="structure-tab" class="selected">结构关系</button><button id="flow-tab">信息流演示</button><button id="diagram-tab">流程图</button></div><div class="map-actions"><div class="detail-switch" role="group" aria-label="地图显示层级" data-level="compact"><button id="compact-view" aria-pressed="true">简化显示</button><button id="full-view" aria-pressed="false">完全展开</button></div><button id="reset-layout" class="outline-button">重置布局</button></div></div>
+        <div class="panel-toolbar"><div class="view-tabs"><button id="structure-tab" class="selected">结构关系</button><button id="flow-tab">信息流演示</button><button id="diagram-tab">流程图</button><button id="practice-tab">案例与测试</button></div><div class="map-actions"><div class="detail-switch" role="group" aria-label="地图显示层级" data-level="compact"><button id="compact-view" aria-pressed="true">简化显示</button><button id="full-view" aria-pressed="false">完全展开</button></div><button id="reset-layout" class="outline-button">重置布局</button></div></div>
         <div class="canvas" id="canvas"><div class="canvas-label"><span class="live-dot"></span><span id="view-caption">当前代码 · 6 个组件</span></div><div class="graph-viewport" id="graph-viewport"><div id="graph"><svg id="edges" viewBox="0 0 940 660" aria-hidden="true"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="currentColor"/></marker></defs><g id="edge-paths"></g></svg><div id="graph-nodes"></div></div></div><div class="legend"><span><i class="green"></i>已实现</span><span><i class="amber"></i>需注意</span><span id="map-caption">右键 / 中键拖动地图</span></div><div class="zoom-controls"><button id="zoom-out" aria-label="缩小">−</button><button id="zoom-label" aria-label="恢复100%大小">100%</button><button id="zoom-in" aria-label="放大">＋</button><button id="fit" aria-label="适应画布">⤢</button></div></div>
-        <div class="flow-controls" hidden><div><span class="simulation-label">模拟演示</span><select id="flow-path" aria-label="选择演示路径"><option value="main">main.py</option><option value="simple">Agent 普通对话</option><option value="tools">Agent 工具循环</option><option value="react">ReAct</option></select><span id="flow-description">当前 main.py 路径</span></div><div class="playback"><button id="reset" aria-label="重置演示">↺</button><button id="play" class="play-button">▶ 播放</button><button id="step">单步 →</button><select id="speed" aria-label="播放速度"><option value="1800">1×</option><option value="900">2×</option><option value="3000">0.5×</option></select></div></div>
-        <div class="event-box" aria-live="polite" hidden><span id="step-counter">准备就绪</span><div><strong id="event-title">信息流演示</strong><p id="event-text">点击播放或单步。数据为教学示例，不会调用模型或读取密钥。</p><code id="event-data">input → client → stream → output</code></div></div>
+        <div class="flow-controls" hidden><div><span class="simulation-label">源码流程</span><select id="flow-path" aria-label="选择项目示例"></select><span id="flow-description">当前 main.py 路径</span></div><div class="playback"><button id="reset" aria-label="重置演示">↺</button><button id="play" class="play-button">▶ 播放</button><button id="previous" disabled>← 上一步</button><button id="step">单步 →</button><select id="speed" aria-label="播放速度"><option value="1800">1×</option><option value="900">2×</option><option value="3000">0.5×</option></select></div></div>
+        <div class="event-box" aria-live="polite" hidden><span id="step-counter">准备就绪</span><div><strong id="event-title">信息流演示</strong><p id="event-text">点击播放或单步。按示例源码展开，不执行模型请求。</p><code id="event-data">input → client → stream → output</code></div></div>
+        <section id="case-detail" class="case-detail" hidden aria-label="案例执行步骤">
+          <div class="case-progress"><progress id="case-progress" value="0" max="1" aria-label="案例进度"></progress><button id="current-code" disabled>查看当前调用处 ↗</button></div>
+          <nav id="case-steps" class="case-steps" aria-label="跳转案例步骤"></nav>
+          <div class="case-io"><div><span>调用参数 / 源码</span><pre id="case-input">选择案例后点击单步或播放</pre></div><div><span>返回约定</span><pre id="case-output">尚未开始</pre></div></div>
+        </section>
         <div id="diagram-panel" class="diagram-panel" hidden></div>
+        <section id="practice-panel" class="practice-panel" aria-label="案例与测试" hidden></section>
       </section>
 
     </div>
@@ -34,7 +40,7 @@
     <div id="detail-content" class="reader-layout"></div>
     <div class="dialog-hint">左侧步骤定位源码 · 右侧下划线调用进入实现 <span>Esc 关闭</span></div>
   </dialog>
-  <dialog id="guide-dialog"><button class="dialog-close" aria-label="关闭指南">×</button><h2>使用指南</h2><ol><li>点击节点打开详情弹窗，左侧功能讲解与右侧真实源码并排展示；点击左侧步骤定位并高亮代码。</li><li>左键拖动节点，可越过原点向任意方向移动，连线自动跟随，连接关系不变；“重置布局”恢复初始位置。也可聚焦节点，按 Alt + 方向键移动。</li><li>地图默认 100%，可手动缩放、适应画布，点击倍率恢复 100%。按住右键或滚轮中键可向任意方向拖动整张地图；滚动滚轮也可平移，Shift + 滚轮横移。</li><li>点击源码下划线调用进入真实实现；顶部调用链可跳转到任意上层，左箭头逐层返回。支持函数选择、复制和自动换行。</li><li>点击“信息流演示”选择 main.py、Agent 普通对话、工具循环或 ReAct；Agent 路径仅为方法级模拟，未接入当前 main.py。</li><li>按 Esc、点击关闭按钮或窗口外部可关闭弹窗。</li></ol><p>只展示当前开发内容，不包含研发阶段或未来规划。需要更新时，按你的要求同步图谱和源码。</p><p>页面不访问 .env、不运行 Python 代码，也不发起模型请求。</p></dialog>
+  <dialog id="guide-dialog"><button class="dialog-close" aria-label="关闭指南">×</button><h2>使用指南</h2><ol><li>点击节点打开详情弹窗，左侧功能讲解与右侧真实源码并排展示；点击左侧步骤定位并高亮代码。</li><li>左键拖动节点，可越过原点向任意方向移动，连线自动跟随，连接关系不变；“重置布局”恢复初始位置。也可聚焦节点，按 Alt + 方向键移动。</li><li>地图默认 100%，可手动缩放、适应画布，点击倍率恢复 100%。按住右键或滚轮中键可向任意方向拖动整张地图；滚动滚轮也可平移，Shift + 滚轮横移。</li><li>点击源码下划线调用进入真实实现；顶部调用链可跳转到任意上层，左箭头逐层返回。支持函数选择、复制和自动换行。</li><li>信息流从 examples 目录发现入口；只显示选中示例的相关实现。步骤按源码位置静态展开，不代表真实运行或分支执行。可切换示例、查看调用处或点击节点进入实现。</li><li>“案例与测试”集中展示 examples 和 tests 节点；点击查看源码，也可跳转关联实现。</li><li>按 Esc、点击关闭按钮或窗口外部可关闭弹窗。</li></ol><p>只展示当前开发内容，不包含研发阶段或未来规划。需要更新时，按你的要求同步图谱和源码。</p><p>页面不访问 .env、不运行 Python 代码，也不发起模型请求。</p></dialog>
   <script src="app.js?v=local-architecture-2" type="module"></script>
 </body>
 </html>

@@ -26,6 +26,13 @@ export class SourceReader {
     if(!$('detail-dialog').open)$('detail-dialog').showModal();
     document.body.classList.add('modal-open');
   }
+  openAt(ref, node) {
+    this.open({...node,file:ref.file,symbol:ref.symbol});
+    const frame = this.frames.at(-1);
+    frame.needle = ref.needle;
+    frame.line = ref.line;
+    this.markStep(true);
+  }
   saveScroll(){
     const f=this.frames.at(-1);if(!f)return;
     f.codeScroll=$('source-code')?.scrollTop||0;f.noteScroll=document.querySelector('.reader-notes')?.scrollTop||0;
@@ -83,14 +90,14 @@ export class SourceReader {
     const unique=[...new Map(calls.filter(c=>key(c.file,c.symbol)!==key(file,symbol)).map(c=>[key(c.file,c.symbol),c])).values()];
     $('detail-content').innerHTML=`
       <section class="reader-notes" aria-label="功能讲解">
-        <div class="reader-heading"><span class="origin-badge">项目实现</span><h2 id="detail-title">${esc(title)}</h2><p class="reader-summary">${esc(summary)}</p></div>
+        <div class="reader-heading"><span class="origin-badge">项目实现</span><h2 id="detail-title">${esc(title)}</h2><h3>负责什么</h3><p class="reader-summary">${esc(summary)}</p></div>
         ${node?.members?`<div class="reader-section component-members"><h3>${esc(node.title)}内的节点</h3><div class="reader-relations">${node.members.map(member=>`<button data-file="${esc(member.file)}" data-symbol="${esc(member.symbol||'')}">${esc(member.title)} ↗<small>${esc(member.file)}</small></button>`).join('')}</div></div>`:''}
         ${note.warning?`<div class="reader-warning">${esc(note.warning)}</div>`:''}
         ${relatedFlows.length?`<div class="reader-section reader-flows"><h3>相关流程图</h3><div class="reader-relations">${relatedFlows.map(s=>`<button data-diagram="${esc(s.id)}">${esc(s.title)} ↗<small>${esc(s.kind)}</small></button>`).join('')}</div></div>`:''}
-        <div class="reader-section"><h3>输入与输出</h3><dl><dt>输入</dt><dd>${esc(note.input||(direct&&node?.input)||'见函数签名')}</dd><dt>输出</dt><dd>${esc(note.output||(direct&&node?.output)||'见源码返回值')}</dd></dl></div>
+        <div class="reader-section"><h3>接收与返回</h3><dl><dt>接收什么</dt><dd>${esc(note.input||(direct&&node?.input)||'见函数签名')}</dd><dt>返回什么</dt><dd>${esc(note.output||(direct&&node?.output)||'见源码返回值')}</dd></dl></div>
         ${points.length?`<div class="reader-section"><h3>关键说明</h3><ul>${points.map(p=>`<li>${esc(p)}</li>`).join('')}</ul></div>`:''}
         ${note.steps?.length&&code?`<div class="reader-section"><h3>执行步骤 <small>点击定位源码</small></h3><div class="reader-steps">${note.steps.map((s,i)=>`<button class="reader-step" data-step="${i}" aria-pressed="${frame.step===i}"><span>${String(i+1).padStart(2,'0')}</span><div><strong>${esc(s.title)}</strong><p>${esc(s.text)}</p></div></button>`).join('')}</div></div>`:''}
-        <div class="reader-section"><h3>调用与依赖</h3><div class="reader-relations">${unique.map(c=>`<button data-file="${esc(c.file)}" data-symbol="${esc(c.symbol)}">${esc(c.symbol)} ↗<small>${esc(c.file)}</small></button>`).join('')||'<p class="reader-empty">此片段没有已索引的跨函数调用。</p>'}</div></div>
+        <div class="reader-section"><h3>调用谁</h3><div class="reader-relations">${unique.map(c=>`<button data-file="${esc(c.file)}" data-symbol="${esc(c.symbol)}">${esc(c.symbol)} ↗<small>${esc(c.file)}</small></button>`).join('')||'<p class="reader-empty">此片段没有已索引的跨函数调用。</p>'}</div></div>
       </section>
       <section class="reader-source" aria-label="真实源码">
         <div class="reader-file"><span>${esc(file)}</span><small>${code?`L${code.start}–L${code.end}`:'索引不可用'}</small></div>
@@ -109,7 +116,7 @@ export class SourceReader {
     $('call-chain').querySelectorAll('button').forEach(b=>b.onclick=()=>{this.saveScroll();this.frames.length=Number(b.dataset.depth)+1;this.render();});
     $('call-chain').querySelector('[aria-current]')?.scrollIntoView?.({block:'nearest',inline:'end'});
     $('detail-content').querySelectorAll('[data-step]').forEach(b=>b.onclick=()=>{
-      frame.step=Number(b.dataset.step);this.markStep(true);
+      frame.needle=null;frame.line=null;frame.step=Number(b.dataset.step);this.markStep(true);
     });
     $('wrap-source').onclick=()=>{frame.wrap=!frame.wrap;$('source-code')?.classList.toggle('wrap',frame.wrap);$('wrap-source').setAttribute('aria-pressed',String(frame.wrap));};
     $('copy-code').disabled=!code;
@@ -121,7 +128,8 @@ export class SourceReader {
   }
   markStep(scroll){
     const frame=this.frames.at(-1),code=this.code(frame),step=notes[key(frame.file,frame.symbol)]?.steps?.[frame.step];
-    const range=step&&code?this.range(step,code):null;
+    const target=frame.needle?{needle:frame.needle}:step;
+    const range=frame.line?{start:frame.line,end:frame.line}:target&&code?this.range(target,code):null;
     $('detail-content').querySelectorAll('[data-line]').forEach(el=>el.classList.toggle('line-active',!!range&&Number(el.dataset.line)>=range.start&&Number(el.dataset.line)<=range.end));
     $('detail-content').querySelectorAll('[data-step]').forEach(el=>el.setAttribute('aria-pressed',String(Number(el.dataset.step)===frame.step)));
     if(scroll&&range)$('source-code').querySelector(`[data-line="${range.start}"]`)?.scrollIntoView?.({block:'center',inline:'nearest'});

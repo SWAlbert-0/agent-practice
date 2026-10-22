@@ -1,0 +1,50 @@
+[
+  {
+    "id": "examples/simple_agent_demo.py::main",
+    "file": "examples/simple_agent_demo.py",
+    "symbol": "main",
+    "title": "基础对话 Agent"
+  },
+  {
+    "id": "examples/calculator_demo.py::demo_calculator_tool",
+    "file": "examples/calculator_demo.py",
+    "symbol": "demo_calculator_tool",
+    "title": "计算器工具基础"
+  },
+  {
+    "id": "examples/calculator_demo.py::demo_calculator_with_llm",
+    "file": "examples/calculator_demo.py",
+    "symbol": "demo_calculator_with_llm",
+    "title": "计算器与模型协作"
+  },
+  {
+    "id": "examples/reflection_agent_demo.py::main",
+    "file": "examples/reflection_agent_demo.py",
+    "symbol": "main",
+    "title": "反思 Agent：评估与改进"
+  },
+  {
+    "id": "examples/plan_solve_agent_demo.py::main",
+    "file": "examples/plan_solve_agent_demo.py",
+    "symbol": "main",
+    "title": "规划执行 Agent：分解与执行"
+  },
+  {
+    "id": "examples/search_demo.py::demo_direct_search",
+    "file": "examples/search_demo.py",
+    "symbol": "demo_direct_search",
+    "title": "搜索工具：直接查询"
+  },
+  {
+    "id": "examples/search_demo.py::demo_search",
+    "file": "examples/search_demo.py",
+    "symbol": "demo_search",
+    "title": "搜索工具：注册与调用"
+  },
+  {
+    "id": "examples/search_demo.py::demo_tool_description",
+    "file": "examples/search_demo.py",
+    "symbol": "demo_tool_description",
+    "title": "搜索工具：查看工具描述"
+  }
+]

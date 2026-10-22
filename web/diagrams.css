@@ -3,22 +3,55 @@
 .diagram-toolbar{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .diagram-toolbar label{display:flex;align-items:center;gap:12px;font-size:16px;font-weight:600;color:#364254}
 .diagram-toolbar select{min-width:240px;padding:10px 34px 10px 12px;border:1px solid #dce1e8;background:#fff;border-radius:10px;font-size:16px;color:#27364a}
+#diagram-type{min-width:160px}
+#diagram-scene{min-width:240px;max-width:360px}
+#diagram-count{font-size:13px;color:#65768a;font-variant-numeric:tabular-nums}
+.diagram-heading{display:flex;align-items:center;gap:12px;margin-top:26px}
+.diagram-heading h2{margin:0;color:#20364d;font-size:22px;font-weight:650;line-height:1.4}
 #diagram-kind{font-size:13px;color:#6d7d92;background:#f0f3f7;border-radius:7px;padding:5px 9px}
 .diagram-actions{display:flex;gap:6px;margin-left:auto}
 .diagram-panel button{border:1px solid #dde3eb;background:#fff;color:#4d6079;padding:8px 12px;border-radius:9px;font:inherit;font-size:14px;cursor:pointer}
 .diagram-panel button:hover{background:#edf3fa;border-color:#b9c9dc}
-#diagram-description{font-size:16px;line-height:1.7;color:#657187;margin:16px 0}
-#diagram-viewport{height:calc(80dvh + 320px);min-height:800px;overflow:hidden;position:relative;background:radial-gradient(#dfe5ed .8px,transparent .8px) 0 0 / 22px 22px #fafbfd;border:1px solid #e5e9ef;border-radius:14px;touch-action:none}
+#diagram-description{font-size:15px;line-height:1.8;color:#586b80;margin:10px 0 14px;max-width:900px}
+.diagram-legend{display:flex;align-items:center;gap:20px;flex-wrap:wrap;font-size:13px;color:#627387;margin:0 0 16px}
+.diagram-legend:empty{display:none}
+.diagram-legend span{display:inline-flex;align-items:center;gap:8px}
+.legend-process{width:15px;height:11px;border:1px solid #8eaaca;border-radius:3px;background:#edf4fc}
+.legend-decision{width:10px;height:10px;border:1px solid #b89a63;background:#fff5e5;transform:rotate(45deg);margin:0 3px}
+.legend-lifeline{height:13px;border-left:2px dashed #7e91a7}
+#diagram-viewport{height:calc(80dvh + 320px);min-height:800px;overflow:hidden;position:relative;background:radial-gradient(#dbe3ed .6px,transparent .6px) 0 0 / 24px 24px #ffffff;border:1px solid #dce4ee;border-radius:12px;touch-action:none}
 #diagram-stage{position:absolute;left:0;top:0;transform-origin:0 0;color:#6d7d92;font-size:16px}
+.diagram-scroll-area{position:relative;width:100%;height:100%}
 #diagram-stage svg{display:block;overflow:visible}
+#diagram-stage .node rect{rx:8px;ry:8px}
+#diagram-stage .node .label-container{stroke-width:1.4px}
+#diagram-stage .diagram-decision polygon{fill:#fff5e5!important;stroke:#b89a63!important}
+#diagram-stage .nodeLabel,#diagram-stage .messageText,#diagram-stage .actor{font-weight:500}
+#diagram-stage .edgeLabel rect{fill:#fff!important;opacity:.96}
+#diagram-stage .edgeLabel{font-size:14px}
+#diagram-stage .flowchart-link{stroke-width:1.5px}
+#diagram-stage .actor-line{stroke:#afbdcc!important;stroke-width:1px!important;stroke-dasharray:4 6}
+#diagram-stage .messageLine0,#diagram-stage .messageLine1{stroke-width:1.5px}
+#diagram-stage .note{stroke-width:1px}
 .diagram-hint{position:absolute;left:14px;bottom:12px;background:#fafbfdec;color:#7b8798;font-size:12px;padding:5px 8px;border-radius:6px;pointer-events:none}
 #diagram-viewport.panning{cursor:grabbing}
 .diagram-source-link{cursor:pointer;text-decoration:underline;text-underline-offset:4px}
-.diagram-source-link:hover,.diagram-source-link:focus{filter:drop-shadow(0 0 3px #8faac4);outline:none}
+.diagram-source-link:hover{filter:drop-shadow(0 2px 3px #526d8733)}
+.diagram-source-link:focus-visible{outline:2px solid #315f91;outline-offset:5px}
 #diagram-sources{display:flex;align-items:center;flex-wrap:wrap;gap:9px;padding:17px 0;color:#78859a;font-size:14px}
 .diagram-definition{border-top:1px solid #e7ebf0;padding-top:14px;color:#748198;font-size:14px}
 .diagram-definition summary{cursor:pointer;width:max-content}
 .diagram-definition pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f7fa;border-radius:10px;padding:20px;color:#48596e;font-size:14px;line-height:1.7;max-height:380px;overflow:auto}
 .reader-flows{margin-top:20px}
-@media(max-width:700px){.diagram-panel{padding:16px}.diagram-actions{margin-left:0}.diagram-hint{font-size:11px}.diagram-toolbar select{min-width:190px}}
+body.diagram-reading{overflow:hidden}
+.diagram-panel.diagram-fixed{position:fixed;inset:16px;z-index:1000;display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:12px;padding:20px;border:1px solid #dce4ee;border-radius:14px;box-shadow:0 16px 90px #20364d30;overflow:hidden}
+.diagram-fixed .diagram-heading{margin:0}
+.diagram-fixed #diagram-description,.diagram-fixed .diagram-legend,.diagram-fixed .diagram-definition{display:none}
+.diagram-fixed #diagram-viewport{min-height:0;height:100%;overflow:auto;touch-action:pan-x pan-y;overscroll-behavior:contain;scrollbar-gutter:stable}
+.diagram-fixed #diagram-sources{padding:0;max-height:96px;overflow:auto}
+.diagram-fixed .diagram-hint{display:none}
+#diagram-pin[aria-pressed="true"]{color:#315f91;border-color:#8eaaca;background:#edf4fc}
+.diagram-panel button:disabled{opacity:.45;cursor:default}
+@media(max-width:700px){.diagram-panel.diagram-fixed{inset:6px;padding:12px;gap:9px}.diagram-fixed .diagram-toolbar{gap:8px}.diagram-fixed .diagram-actions{flex-wrap:wrap}.diagram-fixed .diagram-heading h2{font-size:17px}.diagram-fixed #diagram-sources{max-height:84px;gap:5px}.diagram-fixed #diagram-sources button{padding:5px 8px;font-size:12px}.diagram-fixed .diagram-toolbar label{font-size:14px}.diagram-fixed .diagram-toolbar select{padding-top:7px;padding-bottom:7px}}
+@media(max-width:700px){.diagram-panel{padding:16px}.diagram-actions{margin-left:0}.diagram-hint{font-size:11px;max-width:calc(100% - 28px);line-height:1.6}.diagram-toolbar{gap:12px}.diagram-toolbar label{width:100%;justify-content:space-between}.diagram-toolbar select,#diagram-type,#diagram-scene{min-width:0;width:calc(100% - 52px);max-width:none}.diagram-heading{align-items:flex-start}.diagram-heading h2{font-size:19px}.diagram-legend{gap:12px;font-size:12px}#diagram-viewport{min-height:560px;height:80dvh}}
 @media(prefers-reduced-motion:reduce){.diagram-panel *{scroll-behavior:auto}}

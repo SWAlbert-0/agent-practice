@@ -8,14 +8,18 @@
         "start": 6,
         "end": 16,
         "file": "core/llm.py",
-        "symbol": "create_llm"
+        "symbol": "create_llm",
+        "kind": "call",
+        "expression": "create_llm()"
       },
       {
         "line": 12,
         "start": 18,
         "end": 27,
         "file": "core/llm.py",
-        "symbol": "LLM.think"
+        "symbol": "LLM.think",
+        "kind": "call",
+        "expression": "llm.think(messages)"
       }
     ],
     "origin": "project"
@@ -70,28 +74,36 @@
         "start": 19,
         "end": 32,
         "file": "core/llm.py",
-        "symbol": "LLM._request"
+        "symbol": "LLM._request",
+        "kind": "call",
+        "expression": "self._request(messages, stream=False, options=kwargs)"
       },
       {
         "line": 72,
         "start": 13,
         "end": 26,
         "file": "core/llm.py",
-        "symbol": "LLM._request"
+        "symbol": "LLM._request",
+        "kind": "call",
+        "expression": "self._request(messages, stream=True, options=kwargs)"
       },
       {
         "line": 85,
         "start": 19,
         "end": 29,
         "file": "core/llm.py",
-        "symbol": "LLM.think"
+        "symbol": "LLM.think",
+        "kind": "call",
+        "expression": "self.think(messages, **kwargs)"
       },
       {
         "line": 125,
         "start": 11,
         "end": 14,
         "file": "core/llm.py",
-        "symbol": "LLM.__init__"
+        "symbol": "LLM.__init__",
+        "kind": "call",
+        "expression": "LLM(\n        provider=provider,\n        model=model,\n        base_url=base_url,\n        api_key=api_key,\n    )"
       }
     ],
     "origin": "project"
@@ -141,7 +153,9 @@
         "start": 32,
         "end": 38,
         "file": "core/config.py",
-        "symbol": "Config"
+        "symbol": "Config",
+        "kind": "call",
+        "expression": "Config()"
       }
     ],
     "origin": "project"
@@ -270,224 +284,288 @@
         "start": 18,
         "end": 23,
         "file": "core/agent.py",
-        "symbol": "Agent"
+        "symbol": "Agent",
+        "kind": "reference",
+        "expression": "Agent"
       },
       {
         "line": 24,
         "start": 8,
         "end": 24,
         "file": "core/agent.py",
-        "symbol": "Agent.__init__"
+        "symbol": "Agent.__init__",
+        "kind": "call",
+        "expression": "super().__init__(name, llm, system_prompt, config)"
       },
       {
         "line": 39,
         "start": 33,
         "end": 65,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent._get_enhanced_system_prompt"
+        "symbol": "SimpleAgent._get_enhanced_system_prompt",
+        "kind": "call",
+        "expression": "self._get_enhanced_system_prompt()"
       },
       {
         "line": 43,
         "start": 19,
         "end": 35,
         "file": "core/agent.py",
-        "symbol": "Agent.get_history"
+        "symbol": "Agent.get_history",
+        "kind": "call",
+        "expression": "self.get_history()"
       },
       {
         "line": 51,
         "start": 23,
         "end": 38,
         "file": "core/llm.py",
-        "symbol": "LLM.invoke"
+        "symbol": "LLM.invoke",
+        "kind": "call",
+        "expression": "self.llm.invoke(messages, **kwargs)"
       },
       {
         "line": 52,
         "start": 12,
         "end": 28,
         "file": "core/agent.py",
-        "symbol": "Agent.add_message"
+        "symbol": "Agent.add_message",
+        "kind": "call",
+        "expression": "self.add_message(Message(input_text, \"user\"))"
       },
       {
         "line": 52,
         "start": 29,
         "end": 36,
         "file": "core/message.py",
-        "symbol": "Message.__init__"
+        "symbol": "Message.__init__",
+        "kind": "call",
+        "expression": "Message(input_text, \"user\")"
       },
       {
         "line": 53,
         "start": 12,
         "end": 28,
         "file": "core/agent.py",
-        "symbol": "Agent.add_message"
+        "symbol": "Agent.add_message",
+        "kind": "call",
+        "expression": "self.add_message(Message(response, \"assistant\"))"
       },
       {
         "line": 53,
         "start": 29,
         "end": 36,
         "file": "core/message.py",
-        "symbol": "Message.__init__"
+        "symbol": "Message.__init__",
+        "kind": "call",
+        "expression": "Message(response, \"assistant\")"
       },
       {
         "line": 58,
         "start": 15,
         "end": 42,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent._run_with_tool_calling"
+        "symbol": "SimpleAgent._run_with_tool_calling",
+        "kind": "call",
+        "expression": "self._run_with_tool_calling(messages, input_text, max_tool_iterations, **kwargs)"
       },
       {
         "line": 70,
         "start": 28,
         "end": 68,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tools_description"
+        "symbol": "ToolRegistry.get_tools_description",
+        "kind": "call",
+        "expression": "self.tool_registry.get_tools_description()"
       },
       {
         "line": 93,
         "start": 23,
         "end": 38,
         "file": "core/llm.py",
-        "symbol": "LLM.invoke"
+        "symbol": "LLM.invoke",
+        "kind": "call",
+        "expression": "self.llm.invoke(messages, **kwargs)"
       },
       {
         "line": 96,
         "start": 25,
         "end": 47,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent._parse_tool_calls"
+        "symbol": "SimpleAgent._parse_tool_calls",
+        "kind": "call",
+        "expression": "self._parse_tool_calls(response)"
       },
       {
         "line": 105,
         "start": 29,
         "end": 52,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent._execute_tool_call"
+        "symbol": "SimpleAgent._execute_tool_call",
+        "kind": "call",
+        "expression": "self._execute_tool_call(call['tool_name'], call['parameters'])"
       },
       {
         "line": 126,
         "start": 29,
         "end": 44,
         "file": "core/llm.py",
-        "symbol": "LLM.invoke"
+        "symbol": "LLM.invoke",
+        "kind": "call",
+        "expression": "self.llm.invoke(messages, **kwargs)"
       },
       {
         "line": 129,
         "start": 8,
         "end": 24,
         "file": "core/agent.py",
-        "symbol": "Agent.add_message"
+        "symbol": "Agent.add_message",
+        "kind": "call",
+        "expression": "self.add_message(Message(input_text, \"user\"))"
       },
       {
         "line": 129,
         "start": 25,
         "end": 32,
         "file": "core/message.py",
-        "symbol": "Message.__init__"
+        "symbol": "Message.__init__",
+        "kind": "call",
+        "expression": "Message(input_text, \"user\")"
       },
       {
         "line": 130,
         "start": 8,
         "end": 24,
         "file": "core/agent.py",
-        "symbol": "Agent.add_message"
+        "symbol": "Agent.add_message",
+        "kind": "call",
+        "expression": "self.add_message(Message(final_response, \"assistant\"))"
       },
       {
         "line": 130,
         "start": 25,
         "end": 32,
         "file": "core/message.py",
-        "symbol": "Message.__init__"
+        "symbol": "Message.__init__",
+        "kind": "call",
+        "expression": "Message(final_response, \"assistant\")"
       },
       {
         "line": 158,
         "start": 25,
         "end": 56,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "self.tool_registry.execute_tool(tool_name, parameters)"
       },
       {
         "line": 161,
         "start": 29,
         "end": 56,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent._parse_tool_parameters"
+        "symbol": "SimpleAgent._parse_tool_parameters",
+        "kind": "call",
+        "expression": "self._parse_tool_parameters(tool_name, parameters)"
       },
       {
         "line": 162,
         "start": 23,
         "end": 50,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tool"
+        "symbol": "ToolRegistry.get_tool",
+        "kind": "call",
+        "expression": "self.tool_registry.get_tool(tool_name)"
       },
       {
         "line": 211,
         "start": 19,
         "end": 35,
         "file": "core/agent.py",
-        "symbol": "Agent.get_history"
+        "symbol": "Agent.get_history",
+        "kind": "call",
+        "expression": "self.get_history()"
       },
       {
         "line": 219,
         "start": 21,
         "end": 43,
         "file": "core/llm.py",
-        "symbol": "LLM.stream_invoke"
+        "symbol": "LLM.stream_invoke",
+        "kind": "call",
+        "expression": "self.llm.stream_invoke(messages, **kwargs)"
       },
       {
         "line": 226,
         "start": 8,
         "end": 24,
         "file": "core/agent.py",
-        "symbol": "Agent.add_message"
+        "symbol": "Agent.add_message",
+        "kind": "call",
+        "expression": "self.add_message(Message(input_text, \"user\"))"
       },
       {
         "line": 226,
         "start": 25,
         "end": 32,
         "file": "core/message.py",
-        "symbol": "Message.__init__"
+        "symbol": "Message.__init__",
+        "kind": "call",
+        "expression": "Message(input_text, \"user\")"
       },
       {
         "line": 227,
         "start": 8,
         "end": 24,
         "file": "core/agent.py",
-        "symbol": "Agent.add_message"
+        "symbol": "Agent.add_message",
+        "kind": "call",
+        "expression": "self.add_message(Message(full_response, \"assistant\"))"
       },
       {
         "line": 227,
         "start": 25,
         "end": 32,
         "file": "core/message.py",
-        "symbol": "Message.__init__"
+        "symbol": "Message.__init__",
+        "kind": "call",
+        "expression": "Message(full_response, \"assistant\")"
       },
       {
         "line": 234,
         "start": 33,
         "end": 45,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 237,
         "start": 8,
         "end": 40,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_tool"
+        "symbol": "ToolRegistry.register_tool",
+        "kind": "call",
+        "expression": "self.tool_registry.register_tool(tool)"
       },
       {
         "line": 247,
         "start": 12,
         "end": 46,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.unregister_tool"
+        "symbol": "ToolRegistry.unregister_tool",
+        "kind": "call",
+        "expression": "self.tool_registry.unregister_tool(tool_name)"
       },
       {
         "line": 254,
         "start": 19,
         "end": 48,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.list_tools"
+        "symbol": "ToolRegistry.list_tools",
+        "kind": "call",
+        "expression": "self.tool_registry.list_tools()"
       }
     ],
     "origin": "project"
@@ -537,126 +615,162 @@
         "start": 17,
         "end": 22,
         "file": "core/agent.py",
-        "symbol": "Agent"
+        "symbol": "Agent",
+        "kind": "reference",
+        "expression": "Agent"
       },
       {
         "line": 54,
         "start": 8,
         "end": 24,
         "file": "core/agent.py",
-        "symbol": "Agent.__init__"
+        "symbol": "Agent.__init__",
+        "kind": "call",
+        "expression": "super().__init__(name, llm, system_prompt, config)"
       },
       {
         "line": 58,
         "start": 67,
         "end": 87,
         "file": "agents/react_agent.py",
-        "symbol": "DEFAULT_REACT_PROMPT"
+        "symbol": "DEFAULT_REACT_PROMPT",
+        "kind": "reference",
+        "expression": "DEFAULT_REACT_PROMPT"
       },
       {
         "line": 73,
         "start": 25,
         "end": 65,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tools_description"
+        "symbol": "ToolRegistry.get_tools_description",
+        "kind": "call",
+        "expression": "self.tool_registry.get_tools_description()"
       },
       {
         "line": 83,
         "start": 28,
         "end": 43,
         "file": "core/llm.py",
-        "symbol": "LLM.invoke"
+        "symbol": "LLM.invoke",
+        "kind": "call",
+        "expression": "self.llm.invoke(messages, **kwargs)"
       },
       {
         "line": 86,
         "start": 30,
         "end": 48,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent._parse_output"
+        "symbol": "ReActAgent._parse_output",
+        "kind": "call",
+        "expression": "self._parse_output(response_text)"
       },
       {
         "line": 90,
         "start": 31,
         "end": 55,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent._parse_action_input"
+        "symbol": "ReActAgent._parse_action_input",
+        "kind": "call",
+        "expression": "self._parse_action_input(action)"
       },
       {
         "line": 91,
         "start": 16,
         "end": 32,
         "file": "core/agent.py",
-        "symbol": "Agent.add_message"
+        "symbol": "Agent.add_message",
+        "kind": "call",
+        "expression": "self.add_message(Message(input_text, \"user\"))"
       },
       {
         "line": 91,
         "start": 33,
         "end": 40,
         "file": "core/message.py",
-        "symbol": "Message.__init__"
+        "symbol": "Message.__init__",
+        "kind": "call",
+        "expression": "Message(input_text, \"user\")"
       },
       {
         "line": 92,
         "start": 16,
         "end": 32,
         "file": "core/agent.py",
-        "symbol": "Agent.add_message"
+        "symbol": "Agent.add_message",
+        "kind": "call",
+        "expression": "self.add_message(Message(final_answer, \"assistant\"))"
       },
       {
         "line": 92,
         "start": 33,
         "end": 40,
         "file": "core/message.py",
-        "symbol": "Message.__init__"
+        "symbol": "Message.__init__",
+        "kind": "call",
+        "expression": "Message(final_answer, \"assistant\")"
       },
       {
         "line": 97,
         "start": 40,
         "end": 58,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent._parse_action"
+        "symbol": "ReActAgent._parse_action",
+        "kind": "call",
+        "expression": "self._parse_action(action)"
       },
       {
         "line": 98,
         "start": 30,
         "end": 61,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "self.tool_registry.execute_tool(tool_name, tool_input)"
       },
       {
         "line": 104,
         "start": 8,
         "end": 24,
         "file": "core/agent.py",
-        "symbol": "Agent.add_message"
+        "symbol": "Agent.add_message",
+        "kind": "call",
+        "expression": "self.add_message(Message(input_text, \"user\"))"
       },
       {
         "line": 104,
         "start": 25,
         "end": 32,
         "file": "core/message.py",
-        "symbol": "Message.__init__"
+        "symbol": "Message.__init__",
+        "kind": "call",
+        "expression": "Message(input_text, \"user\")"
       },
       {
         "line": 105,
         "start": 8,
         "end": 24,
         "file": "core/agent.py",
-        "symbol": "Agent.add_message"
+        "symbol": "Agent.add_message",
+        "kind": "call",
+        "expression": "self.add_message(Message(final_answer, \"assistant\"))"
       },
       {
         "line": 105,
         "start": 25,
         "end": 32,
         "file": "core/message.py",
-        "symbol": "Message.__init__"
+        "symbol": "Message.__init__",
+        "kind": "call",
+        "expression": "Message(final_answer, \"assistant\")"
       },
       {
         "line": 127,
         "start": 26,
         "end": 44,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent._parse_action"
+        "symbol": "ReActAgent._parse_action",
+        "kind": "call",
+        "expression": "self._parse_action(action_text)"
       }
     ],
     "origin": "project"
@@ -716,77 +830,99 @@
         "start": 22,
         "end": 28,
         "file": "agents/reflection_agent.py",
-        "symbol": "Memory.__init__"
+        "symbol": "Memory.__init__",
+        "kind": "call",
+        "expression": "Memory()"
       },
       {
         "line": 98,
         "start": 22,
         "end": 28,
         "file": "agents/reflection_agent.py",
-        "symbol": "Memory.__init__"
+        "symbol": "Memory.__init__",
+        "kind": "call",
+        "expression": "Memory()"
       },
       {
         "line": 104,
         "start": 23,
         "end": 45,
         "file": "agents/reflection_agent.py",
-        "symbol": "ReflectionAgent._get_llm_response"
+        "symbol": "ReflectionAgent._get_llm_response",
+        "kind": "call",
+        "expression": "self._get_llm_response(initial_prompt)"
       },
       {
         "line": 105,
         "start": 8,
         "end": 30,
         "file": "agents/reflection_agent.py",
-        "symbol": "Memory.add_record"
+        "symbol": "Memory.add_record",
+        "kind": "call",
+        "expression": "self.memory.add_record(\"execution\", initial_code)"
       },
       {
         "line": 113,
         "start": 24,
         "end": 54,
         "file": "agents/reflection_agent.py",
-        "symbol": "Memory.get_last_execution"
+        "symbol": "Memory.get_last_execution",
+        "kind": "call",
+        "expression": "self.memory.get_last_execution()"
       },
       {
         "line": 115,
         "start": 23,
         "end": 45,
         "file": "agents/reflection_agent.py",
-        "symbol": "ReflectionAgent._get_llm_response"
+        "symbol": "ReflectionAgent._get_llm_response",
+        "kind": "call",
+        "expression": "self._get_llm_response(reflect_prompt)"
       },
       {
         "line": 116,
         "start": 12,
         "end": 34,
         "file": "agents/reflection_agent.py",
-        "symbol": "Memory.add_record"
+        "symbol": "Memory.add_record",
+        "kind": "call",
+        "expression": "self.memory.add_record(\"reflection\", feedback)"
       },
       {
         "line": 130,
         "start": 27,
         "end": 49,
         "file": "agents/reflection_agent.py",
-        "symbol": "ReflectionAgent._get_llm_response"
+        "symbol": "ReflectionAgent._get_llm_response",
+        "kind": "call",
+        "expression": "self._get_llm_response(refine_prompt)"
       },
       {
         "line": 131,
         "start": 12,
         "end": 34,
         "file": "agents/reflection_agent.py",
-        "symbol": "Memory.add_record"
+        "symbol": "Memory.add_record",
+        "kind": "call",
+        "expression": "self.memory.add_record(\"execution\", refined_code)"
       },
       {
         "line": 133,
         "start": 21,
         "end": 51,
         "file": "agents/reflection_agent.py",
-        "symbol": "Memory.get_last_execution"
+        "symbol": "Memory.get_last_execution",
+        "kind": "call",
+        "expression": "self.memory.get_last_execution()"
       },
       {
         "line": 141,
         "start": 21,
         "end": 42,
         "file": "core/llm.py",
-        "symbol": "LLM.think"
+        "symbol": "LLM.think",
+        "kind": "call",
+        "expression": "self.llm_client.think(messages=messages)"
       }
     ],
     "origin": "project"
@@ -846,42 +982,54 @@
         "start": 21,
         "end": 42,
         "file": "core/llm.py",
-        "symbol": "LLM.think"
+        "symbol": "LLM.think",
+        "kind": "call",
+        "expression": "self.llm_client.think(messages=messages)"
       },
       {
         "line": 101,
         "start": 25,
         "end": 46,
         "file": "core/llm.py",
-        "symbol": "LLM.think"
+        "symbol": "LLM.think",
+        "kind": "call",
+        "expression": "self.llm_client.think(messages=messages)"
       },
       {
         "line": 120,
         "start": 23,
         "end": 30,
         "file": "agents/plan_solve_agent.py",
-        "symbol": "Planner.__init__"
+        "symbol": "Planner.__init__",
+        "kind": "call",
+        "expression": "Planner(self.llm_client)"
       },
       {
         "line": 121,
         "start": 24,
         "end": 32,
         "file": "agents/plan_solve_agent.py",
-        "symbol": "Executor.__init__"
+        "symbol": "Executor.__init__",
+        "kind": "call",
+        "expression": "Executor(self.llm_client)"
       },
       {
         "line": 130,
         "start": 15,
         "end": 32,
         "file": "agents/plan_solve_agent.py",
-        "symbol": "Planner.plan"
+        "symbol": "Planner.plan",
+        "kind": "call",
+        "expression": "self.planner.plan(question)"
       },
       {
         "line": 138,
         "start": 23,
         "end": 44,
         "file": "agents/plan_solve_agent.py",
-        "symbol": "Executor.execute"
+        "symbol": "Executor.execute",
+        "kind": "call",
+        "expression": "self.executor.execute(question, plan)"
       }
     ],
     "origin": "project"
@@ -1020,77 +1168,99 @@
         "start": 17,
         "end": 27,
         "file": "tools/calculator_tool.py",
-        "symbol": "_eval_node"
+        "symbol": "_eval_node",
+        "kind": "call",
+        "expression": "_eval_node(node.body, operators, functions)"
       },
       {
         "line": 51,
         "start": 15,
         "end": 25,
         "file": "tools/calculator_tool.py",
-        "symbol": "_eval_node"
+        "symbol": "_eval_node",
+        "kind": "call",
+        "expression": "_eval_node(node.left, operators, functions)"
       },
       {
         "line": 52,
         "start": 16,
         "end": 26,
         "file": "tools/calculator_tool.py",
-        "symbol": "_eval_node"
+        "symbol": "_eval_node",
+        "kind": "call",
+        "expression": "_eval_node(node.right, operators, functions)"
       },
       {
         "line": 58,
         "start": 20,
         "end": 30,
         "file": "tools/calculator_tool.py",
-        "symbol": "_eval_node"
+        "symbol": "_eval_node",
+        "kind": "call",
+        "expression": "_eval_node(arg, operators, functions)"
       },
       {
         "line": 64,
         "start": 21,
         "end": 25,
         "file": "tools/base.py",
-        "symbol": "Tool"
+        "symbol": "Tool",
+        "kind": "reference",
+        "expression": "Tool"
       },
       {
         "line": 68,
         "start": 8,
         "end": 24,
         "file": "tools/base.py",
-        "symbol": "Tool.__init__"
+        "symbol": "Tool.__init__",
+        "kind": "call",
+        "expression": "super().__init__(\n            name=\"calculator\",\n            description=\"执行数学计算，支持加减乘除、括号、sqrt函数和pi常量。例如：2+3*4、sqrt(16)。\"\n        )"
       },
       {
         "line": 77,
         "start": 15,
         "end": 24,
         "file": "tools/calculator_tool.py",
-        "symbol": "calculate"
+        "symbol": "calculate",
+        "kind": "call",
+        "expression": "calculate(expression)"
       },
       {
         "line": 82,
         "start": 12,
         "end": 25,
         "file": "tools/base.py",
-        "symbol": "ToolParameter"
+        "symbol": "ToolParameter",
+        "kind": "call",
+        "expression": "ToolParameter(\n                name=\"input\",\n                type=\"string\",\n                description=\"数学表达式，例如 15 * 8 + 32 或 sqrt(16)\",\n                required=True\n            )"
       },
       {
         "line": 93,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 96,
         "start": 4,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_function"
+        "symbol": "ToolRegistry.register_function",
+        "kind": "call",
+        "expression": "registry.register_function(\n        name=\"calculate\",\n        description=\"简单的数学计算工具，支持基本运算(+,-,*,/)和sqrt函数\",\n        func=calculate\n    )"
       },
       {
         "line": 99,
         "start": 13,
         "end": 22,
         "file": "tools/calculator_tool.py",
-        "symbol": "calculate"
+        "symbol": "calculate",
+        "kind": "reference",
+        "expression": "calculate"
       }
     ],
     "origin": "project"
@@ -1150,70 +1320,90 @@
         "start": 17,
         "end": 21,
         "file": "tools/base.py",
-        "symbol": "Tool"
+        "symbol": "Tool",
+        "kind": "reference",
+        "expression": "Tool"
       },
       {
         "line": 15,
         "start": 8,
         "end": 24,
         "file": "tools/base.py",
-        "symbol": "Tool.__init__"
+        "symbol": "Tool.__init__",
+        "kind": "call",
+        "expression": "super().__init__(name=\"search\", description=\"搜索网页，返回标题、摘要和来源链接。\")"
       },
       {
         "line": 22,
         "start": 8,
         "end": 28,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool._setup_backends"
+        "symbol": "SearchTool._setup_backends",
+        "kind": "call",
+        "expression": "self._setup_backends()"
       },
       {
         "line": 47,
         "start": 15,
         "end": 26,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.search"
+        "symbol": "SearchTool.search",
+        "kind": "call",
+        "expression": "self.search(query)"
       },
       {
         "line": 50,
         "start": 16,
         "end": 29,
         "file": "tools/base.py",
-        "symbol": "ToolParameter"
+        "symbol": "ToolParameter",
+        "kind": "call",
+        "expression": "ToolParameter(name=\"query\", type=\"string\", description=\"要搜索的关键词或问题\")"
       },
       {
         "line": 62,
         "start": 26,
         "end": 45,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool._search_tavily"
+        "symbol": "SearchTool._search_tavily",
+        "kind": "call",
+        "expression": "self._search_tavily(query)"
       },
       {
         "line": 63,
         "start": 31,
         "end": 51,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool._search_serpapi"
+        "symbol": "SearchTool._search_serpapi",
+        "kind": "call",
+        "expression": "self._search_serpapi(query)"
       },
       {
         "line": 116,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 117,
         "start": 4,
         "end": 26,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_tool"
+        "symbol": "ToolRegistry.register_tool",
+        "kind": "call",
+        "expression": "registry.register_tool(SearchTool(backend=backend))"
       },
       {
         "line": 117,
         "start": 27,
         "end": 37,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.__init__"
+        "symbol": "SearchTool.__init__",
+        "kind": "call",
+        "expression": "SearchTool(backend=backend)"
       }
     ],
     "origin": "project"
@@ -1278,119 +1468,153 @@
         "start": 15,
         "end": 37,
         "file": "tools/search_tool.py",
-        "symbol": "create_search_registry"
+        "symbol": "create_search_registry",
+        "kind": "call",
+        "expression": "create_search_registry()"
       },
       {
         "line": 32,
         "start": 11,
         "end": 28,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tool"
+        "symbol": "ToolRegistry.get_tool",
+        "kind": "call",
+        "expression": "registry.get_tool(\"search\")"
       },
       {
         "line": 36,
         "start": 35,
         "end": 56,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"search\", \"Python\")"
       },
       {
         "line": 48,
         "start": 13,
         "end": 32,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.search"
+        "symbol": "SearchTool.search",
+        "kind": "call",
+        "expression": "SearchTool().search(\"query\")"
       },
       {
         "line": 48,
         "start": 13,
         "end": 23,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.__init__"
+        "symbol": "SearchTool.__init__",
+        "kind": "call",
+        "expression": "SearchTool()"
       },
       {
         "line": 57,
         "start": 11,
         "end": 21,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.__init__"
+        "symbol": "SearchTool.__init__",
+        "kind": "call",
+        "expression": "SearchTool(backend=backend)"
       },
       {
         "line": 59,
         "start": 20,
         "end": 31,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.search"
+        "symbol": "SearchTool.search",
+        "kind": "call",
+        "expression": "tool.search(\"query\")"
       },
       {
         "line": 67,
         "start": 11,
         "end": 21,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.__init__"
+        "symbol": "SearchTool.__init__",
+        "kind": "call",
+        "expression": "SearchTool()"
       },
       {
         "line": 68,
         "start": 21,
         "end": 32,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.search"
+        "symbol": "SearchTool.search",
+        "kind": "call",
+        "expression": "tool.search(\" \")"
       },
       {
         "line": 69,
         "start": 21,
         "end": 32,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.search"
+        "symbol": "SearchTool.search",
+        "kind": "call",
+        "expression": "tool.search(\"query\")"
       },
       {
         "line": 79,
         "start": 11,
         "end": 21,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.__init__"
+        "symbol": "SearchTool.__init__",
+        "kind": "call",
+        "expression": "SearchTool()"
       },
       {
         "line": 86,
         "start": 13,
         "end": 32,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.search"
+        "symbol": "SearchTool.search",
+        "kind": "call",
+        "expression": "SearchTool().search(\"query\")"
       },
       {
         "line": 86,
         "start": 13,
         "end": 23,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.__init__"
+        "symbol": "SearchTool.__init__",
+        "kind": "call",
+        "expression": "SearchTool()"
       },
       {
         "line": 95,
         "start": 8,
         "end": 18,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.__init__"
+        "symbol": "SearchTool.__init__",
+        "kind": "call",
+        "expression": "SearchTool(backend=\"unknown\")"
       },
       {
         "line": 103,
         "start": 12,
         "end": 23,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.__init__"
+        "symbol": "SimpleAgent.__init__",
+        "kind": "call",
+        "expression": "SimpleAgent(\"搜索助手\", llm, tool_registry=create_search_registry())"
       },
       {
         "line": 103,
         "start": 51,
         "end": 73,
         "file": "tools/search_tool.py",
-        "symbol": "create_search_registry"
+        "symbol": "create_search_registry",
+        "kind": "call",
+        "expression": "create_search_registry()"
       },
       {
         "line": 104,
         "start": 11,
         "end": 20,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.run"
+        "symbol": "SimpleAgent.run",
+        "kind": "call",
+        "expression": "agent.run(\"搜索 Python\")"
       }
     ],
     "origin": "project"
@@ -1455,28 +1679,36 @@
         "start": 21,
         "end": 42,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(tool_name, tool_input)"
       },
       {
         "line": 85,
         "start": 12,
         "end": 21,
         "file": "tools/chain.py",
-        "symbol": "ToolChain.__init__"
+        "symbol": "ToolChain.__init__",
+        "kind": "call",
+        "expression": "ToolChain(\n        name=\"research_and_calculate\",\n        description=\"搜索信息并进行相关计算\"\n    )"
       },
       {
         "line": 91,
         "start": 4,
         "end": 18,
         "file": "tools/chain.py",
-        "symbol": "ToolChain.add_step"
+        "symbol": "ToolChain.add_step",
+        "kind": "call",
+        "expression": "chain.add_step(\n        tool_name=\"search\",\n        input_template=\"{input}\",\n        output_key=\"search_result\"\n    )"
       },
       {
         "line": 98,
         "start": 4,
         "end": 18,
         "file": "tools/chain.py",
-        "symbol": "ToolChain.add_step"
+        "symbol": "ToolChain.add_step",
+        "kind": "call",
+        "expression": "chain.add_step(\n        tool_name=\"calculate\",\n        input_template=\"根据以下信息计算相关数值:{search_result}\",\n        output_key=\"calculation_result\"\n    )"
       }
     ],
     "origin": "project"
@@ -1521,35 +1753,45 @@
         "start": 19,
         "end": 45,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "self.registry.execute_tool(tool_name, input_data)"
       },
       {
         "line": 33,
         "start": 25,
         "end": 48,
         "file": "tools/async_executor.py",
-        "symbol": "AsyncToolExecutor.execute_tool_async"
+        "symbol": "AsyncToolExecutor.execute_tool_async",
+        "kind": "call",
+        "expression": "self.execute_tool_async(tool_name, input_data)"
       },
       {
         "line": 52,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 55,
         "start": 15,
         "end": 32,
         "file": "tools/async_executor.py",
-        "symbol": "AsyncToolExecutor.__init__"
+        "symbol": "AsyncToolExecutor.__init__",
+        "kind": "call",
+        "expression": "AsyncToolExecutor(registry)"
       },
       {
         "line": 66,
         "start": 20,
         "end": 51,
         "file": "tools/async_executor.py",
-        "symbol": "AsyncToolExecutor.execute_tools_parallel"
+        "symbol": "AsyncToolExecutor.execute_tools_parallel",
+        "kind": "call",
+        "expression": "executor.execute_tools_parallel(tasks)"
       }
     ],
     "origin": "project"
@@ -1569,105 +1811,135 @@
         "start": 10,
         "end": 20,
         "file": "core/llm.py",
-        "symbol": "create_llm"
+        "symbol": "create_llm",
+        "kind": "call",
+        "expression": "create_llm()"
       },
       {
         "line": 13,
         "start": 18,
         "end": 29,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.__init__"
+        "symbol": "SimpleAgent.__init__",
+        "kind": "call",
+        "expression": "SimpleAgent(\n        name=\"基础助手\",\n        llm=llm,\n        system_prompt=\"你是一个友好的AI助手，请用简洁明了的方式回答问题。\"\n    )"
       },
       {
         "line": 19,
         "start": 16,
         "end": 31,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.run"
+        "symbol": "SimpleAgent.run",
+        "kind": "call",
+        "expression": "basic_agent.run(\"你好，请介绍一下自己\")"
       },
       {
         "line": 24,
         "start": 20,
         "end": 32,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 25,
         "start": 17,
         "end": 31,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.__init__"
+        "symbol": "CalculatorTool.__init__",
+        "kind": "call",
+        "expression": "CalculatorTool()"
       },
       {
         "line": 26,
         "start": 4,
         "end": 31,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_tool"
+        "symbol": "ToolRegistry.register_tool",
+        "kind": "call",
+        "expression": "tool_registry.register_tool(calculator)"
       },
       {
         "line": 28,
         "start": 21,
         "end": 32,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.__init__"
+        "symbol": "SimpleAgent.__init__",
+        "kind": "call",
+        "expression": "SimpleAgent(\n        name=\"增强助手\",\n        llm=llm,\n        system_prompt=\"你是一个智能助手，可以使用工具来帮助用户。\",\n        tool_registry=tool_registry,\n        enable_tool_calling=True\n    )"
       },
       {
         "line": 36,
         "start": 16,
         "end": 34,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.run"
+        "symbol": "SimpleAgent.run",
+        "kind": "call",
+        "expression": "enhanced_agent.run(\"请帮我计算 15 * 8 + 32\")"
       },
       {
         "line": 42,
         "start": 17,
         "end": 39,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.stream_run"
+        "symbol": "SimpleAgent.stream_run",
+        "kind": "call",
+        "expression": "basic_agent.stream_run(\"请解释什么是人工智能\")"
       },
       {
         "line": 47,
         "start": 20,
         "end": 41,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.has_tools"
+        "symbol": "SimpleAgent.has_tools",
+        "kind": "call",
+        "expression": "basic_agent.has_tools()"
       },
       {
         "line": 48,
         "start": 4,
         "end": 24,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.add_tool"
+        "symbol": "SimpleAgent.add_tool",
+        "kind": "call",
+        "expression": "basic_agent.add_tool(calculator)"
       },
       {
         "line": 49,
         "start": 20,
         "end": 41,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.has_tools"
+        "symbol": "SimpleAgent.has_tools",
+        "kind": "call",
+        "expression": "basic_agent.has_tools()"
       },
       {
         "line": 50,
         "start": 19,
         "end": 41,
         "file": "agents/simple_agent.py",
-        "symbol": "SimpleAgent.list_tools"
+        "symbol": "SimpleAgent.list_tools",
+        "kind": "call",
+        "expression": "basic_agent.list_tools()"
       },
       {
         "line": 53,
         "start": 25,
         "end": 48,
         "file": "core/agent.py",
-        "symbol": "Agent.get_history"
+        "symbol": "Agent.get_history",
+        "kind": "call",
+        "expression": "basic_agent.get_history()"
       },
       {
         "line": 57,
         "start": 4,
         "end": 8,
         "file": "examples/simple_agent_demo.py",
-        "symbol": "main"
+        "symbol": "main",
+        "kind": "call",
+        "expression": "main()"
       }
     ],
     "origin": "project"
@@ -1727,252 +1999,324 @@
         "start": 10,
         "end": 17,
         "file": "tests/test_react_agent.py",
-        "symbol": "FakeLLM.__init__"
+        "symbol": "FakeLLM.__init__",
+        "kind": "call",
+        "expression": "FakeLLM([])"
       },
       {
         "line": 27,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 28,
         "start": 13,
         "end": 19,
         "file": "core/config.py",
-        "symbol": "Config"
+        "symbol": "Config",
+        "kind": "call",
+        "expression": "Config(debug=True)"
       },
       {
         "line": 29,
         "start": 12,
         "end": 22,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent.__init__"
+        "symbol": "ReActAgent.__init__",
+        "kind": "call",
+        "expression": "ReActAgent(\"test\", llm, registry, system_prompt=\"system\", config=config)"
       },
       {
         "line": 36,
         "start": 11,
         "end": 28,
         "file": "core/agent.py",
-        "symbol": "Agent.get_history"
+        "symbol": "Agent.get_history",
+        "kind": "call",
+        "expression": "agent.get_history()"
       },
       {
         "line": 40,
         "start": 10,
         "end": 17,
         "file": "tests/test_react_agent.py",
-        "symbol": "FakeLLM.__init__"
+        "symbol": "FakeLLM.__init__",
+        "kind": "call",
+        "expression": "FakeLLM([\"Thought: ready\\nAction: Finish[answer]\"])"
       },
       {
         "line": 41,
         "start": 12,
         "end": 22,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent.__init__"
+        "symbol": "ReActAgent.__init__",
+        "kind": "call",
+        "expression": "ReActAgent(\"test\", llm, ToolRegistry())"
       },
       {
         "line": 41,
         "start": 36,
         "end": 48,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 43,
         "start": 11,
         "end": 20,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent.run"
+        "symbol": "ReActAgent.run",
+        "kind": "call",
+        "expression": "agent.run(\"question\", temperature=0)"
       },
       {
         "line": 45,
         "start": 14,
         "end": 31,
         "file": "core/agent.py",
-        "symbol": "Agent.get_history"
+        "symbol": "Agent.get_history",
+        "kind": "call",
+        "expression": "agent.get_history()"
       },
       {
         "line": 50,
         "start": 4,
         "end": 23,
         "file": "core/agent.py",
-        "symbol": "Agent.clear_history"
+        "symbol": "Agent.clear_history",
+        "kind": "call",
+        "expression": "agent.clear_history()"
       },
       {
         "line": 51,
         "start": 11,
         "end": 28,
         "file": "core/agent.py",
-        "symbol": "Agent.get_history"
+        "symbol": "Agent.get_history",
+        "kind": "call",
+        "expression": "agent.get_history()"
       },
       {
         "line": 55,
         "start": 10,
         "end": 17,
         "file": "tests/test_react_agent.py",
-        "symbol": "FakeLLM.__init__"
+        "symbol": "FakeLLM.__init__",
+        "kind": "call",
+        "expression": "FakeLLM([\n        \"Thought: calculate\\nAction: calculator[15 * 8 + 32]\",\n        \"Thought: done\\nAction: Finish[152]\",\n    ])"
       },
       {
         "line": 59,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 60,
         "start": 4,
         "end": 26,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_tool"
+        "symbol": "ToolRegistry.register_tool",
+        "kind": "call",
+        "expression": "registry.register_tool(CalculatorTool())"
       },
       {
         "line": 60,
         "start": 27,
         "end": 41,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.__init__"
+        "symbol": "CalculatorTool.__init__",
+        "kind": "call",
+        "expression": "CalculatorTool()"
       },
       {
         "line": 61,
         "start": 12,
         "end": 22,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent.__init__"
+        "symbol": "ReActAgent.__init__",
+        "kind": "call",
+        "expression": "ReActAgent(\"test\", llm, registry)"
       },
       {
         "line": 63,
         "start": 11,
         "end": 20,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent.run"
+        "symbol": "ReActAgent.run",
+        "kind": "call",
+        "expression": "agent.run(\"calculate\")"
       },
       {
         "line": 65,
         "start": 15,
         "end": 32,
         "file": "core/agent.py",
-        "symbol": "Agent.get_history"
+        "symbol": "Agent.get_history",
+        "kind": "call",
+        "expression": "agent.get_history()"
       },
       {
         "line": 69,
         "start": 10,
         "end": 17,
         "file": "tests/test_react_agent.py",
-        "symbol": "FakeLLM.__init__"
+        "symbol": "FakeLLM.__init__",
+        "kind": "call",
+        "expression": "FakeLLM([\n        \"Thought: working\\nAction: echo[first]\",\n        \"Thought: done\\nAction: Finish[second]\",\n    ])"
       },
       {
         "line": 73,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 74,
         "start": 4,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_function"
+        "symbol": "ToolRegistry.register_function",
+        "kind": "call",
+        "expression": "registry.register_function(\"echo\", \"echo input\", lambda text: text)"
       },
       {
         "line": 75,
         "start": 12,
         "end": 22,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent.__init__"
+        "symbol": "ReActAgent.__init__",
+        "kind": "call",
+        "expression": "ReActAgent(\"test\", llm, registry, max_steps=1)"
       },
       {
         "line": 77,
         "start": 11,
         "end": 20,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent.run"
+        "symbol": "ReActAgent.run",
+        "kind": "call",
+        "expression": "agent.run(\"first question\")"
       },
       {
         "line": 80,
         "start": 11,
         "end": 20,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent.run"
+        "symbol": "ReActAgent.run",
+        "kind": "call",
+        "expression": "agent.run(\"second question\")"
       },
       {
         "line": 91,
         "start": 12,
         "end": 22,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent.__init__"
+        "symbol": "ReActAgent.__init__",
+        "kind": "call",
+        "expression": "ReActAgent(\"test\", FakeLLM([]), ToolRegistry())"
       },
       {
         "line": 91,
         "start": 31,
         "end": 38,
         "file": "tests/test_react_agent.py",
-        "symbol": "FakeLLM.__init__"
+        "symbol": "FakeLLM.__init__",
+        "kind": "call",
+        "expression": "FakeLLM([])"
       },
       {
         "line": 91,
         "start": 44,
         "end": 56,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 93,
         "start": 11,
         "end": 30,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent._parse_output"
+        "symbol": "ReActAgent._parse_output",
+        "kind": "call",
+        "expression": "agent._parse_output(text)"
       },
       {
         "line": 97,
         "start": 12,
         "end": 22,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent.__init__"
+        "symbol": "ReActAgent.__init__",
+        "kind": "call",
+        "expression": "ReActAgent(\"test\", FakeLLM([]), ToolRegistry())"
       },
       {
         "line": 97,
         "start": 31,
         "end": 38,
         "file": "tests/test_react_agent.py",
-        "symbol": "FakeLLM.__init__"
+        "symbol": "FakeLLM.__init__",
+        "kind": "call",
+        "expression": "FakeLLM([])"
       },
       {
         "line": 97,
         "start": 44,
         "end": 56,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 99,
         "start": 11,
         "end": 30,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent._parse_action"
+        "symbol": "ReActAgent._parse_action",
+        "kind": "call",
+        "expression": "agent._parse_action(\"calculator[sqrt(16)]\")"
       },
       {
         "line": 100,
         "start": 11,
         "end": 36,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent._parse_action_input"
+        "symbol": "ReActAgent._parse_action_input",
+        "kind": "call",
+        "expression": "agent._parse_action_input(\"Finish[answer]\")"
       },
       {
         "line": 101,
         "start": 11,
         "end": 30,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent._parse_action"
+        "symbol": "ReActAgent._parse_action",
+        "kind": "call",
+        "expression": "agent._parse_action(\"invalid\")"
       },
       {
         "line": 102,
         "start": 11,
         "end": 36,
         "file": "agents/react_agent.py",
-        "symbol": "ReActAgent._parse_action_input"
+        "symbol": "ReActAgent._parse_action_input",
+        "kind": "call",
+        "expression": "agent._parse_action_input(\"invalid\")"
       }
     ],
     "origin": "project"
@@ -1997,56 +2341,72 @@
         "start": 15,
         "end": 41,
         "file": "tools/calculator_tool.py",
-        "symbol": "create_calculator_registry"
+        "symbol": "create_calculator_registry",
+        "kind": "call",
+        "expression": "create_calculator_registry()"
       },
       {
         "line": 25,
         "start": 17,
         "end": 38,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"calculate\", expression)"
       },
       {
         "line": 32,
         "start": 10,
         "end": 20,
         "file": "core/llm.py",
-        "symbol": "create_llm"
+        "symbol": "create_llm",
+        "kind": "call",
+        "expression": "create_llm()"
       },
       {
         "line": 35,
         "start": 15,
         "end": 41,
         "file": "tools/calculator_tool.py",
-        "symbol": "create_calculator_registry"
+        "symbol": "create_calculator_registry",
+        "kind": "call",
+        "expression": "create_calculator_registry()"
       },
       {
         "line": 45,
         "start": 18,
         "end": 39,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"calculate\", \"sqrt(16) + 2 * 3\")"
       },
       {
         "line": 54,
         "start": 15,
         "end": 24,
         "file": "core/llm.py",
-        "symbol": "LLM.think"
+        "symbol": "LLM.think",
+        "kind": "call",
+        "expression": "llm.think(final_messages)"
       },
       {
         "line": 61,
         "start": 4,
         "end": 24,
         "file": "examples/calculator_demo.py",
-        "symbol": "demo_calculator_tool"
+        "symbol": "demo_calculator_tool",
+        "kind": "call",
+        "expression": "demo_calculator_tool()"
       },
       {
         "line": 62,
         "start": 4,
         "end": 28,
         "file": "examples/calculator_demo.py",
-        "symbol": "demo_calculator_with_llm"
+        "symbol": "demo_calculator_with_llm",
+        "kind": "call",
+        "expression": "demo_calculator_with_llm()"
       }
     ],
     "origin": "project"
@@ -2086,154 +2446,198 @@
         "start": 11,
         "end": 25,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.__init__"
+        "symbol": "CalculatorTool.__init__",
+        "kind": "call",
+        "expression": "CalculatorTool()"
       },
       {
         "line": 19,
         "start": 11,
         "end": 19,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.run"
+        "symbol": "CalculatorTool.run",
+        "kind": "call",
+        "expression": "tool.run({\"input\": expression})"
       },
       {
         "line": 23,
         "start": 11,
         "end": 25,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.__init__"
+        "symbol": "CalculatorTool.__init__",
+        "kind": "call",
+        "expression": "CalculatorTool()"
       },
       {
         "line": 25,
         "start": 11,
         "end": 19,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.run"
+        "symbol": "CalculatorTool.run",
+        "kind": "call",
+        "expression": "tool.run({\"expression\": \"2 + 3\"})"
       },
       {
         "line": 26,
         "start": 11,
         "end": 19,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.run"
+        "symbol": "CalculatorTool.run",
+        "kind": "call",
+        "expression": "tool.run({\"input\": \"\", \"expression\": \"2 + 3\"})"
       },
       {
         "line": 27,
         "start": 11,
         "end": 19,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.run"
+        "symbol": "CalculatorTool.run",
+        "kind": "call",
+        "expression": "tool.run({\"input\": \"2 + 3\", \"expression\": \"9 + 9\"})"
       },
       {
         "line": 31,
         "start": 11,
         "end": 25,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.__init__"
+        "symbol": "CalculatorTool.__init__",
+        "kind": "call",
+        "expression": "CalculatorTool()"
       },
       {
         "line": 33,
         "start": 11,
         "end": 19,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.run"
+        "symbol": "CalculatorTool.run",
+        "kind": "call",
+        "expression": "tool.run({})"
       },
       {
         "line": 34,
         "start": 11,
         "end": 19,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.run"
+        "symbol": "CalculatorTool.run",
+        "kind": "call",
+        "expression": "tool.run({\"input\": \"   \"})"
       },
       {
         "line": 35,
         "start": 11,
         "end": 19,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.run"
+        "symbol": "CalculatorTool.run",
+        "kind": "call",
+        "expression": "tool.run({\"input\": \"1 / 0\"})"
       },
       {
         "line": 36,
         "start": 11,
         "end": 19,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.run"
+        "symbol": "CalculatorTool.run",
+        "kind": "call",
+        "expression": "tool.run({\"input\": \"2 +\"})"
       },
       {
         "line": 40,
         "start": 17,
         "end": 48,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.get_parameters"
+        "symbol": "CalculatorTool.get_parameters",
+        "kind": "call",
+        "expression": "CalculatorTool().get_parameters()"
       },
       {
         "line": 40,
         "start": 17,
         "end": 31,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.__init__"
+        "symbol": "CalculatorTool.__init__",
+        "kind": "call",
+        "expression": "CalculatorTool()"
       },
       {
         "line": 49,
         "start": 15,
         "end": 41,
         "file": "tools/calculator_tool.py",
-        "symbol": "create_calculator_registry"
+        "symbol": "create_calculator_registry",
+        "kind": "call",
+        "expression": "create_calculator_registry()"
       },
       {
         "line": 50,
         "start": 11,
         "end": 25,
         "file": "tools/calculator_tool.py",
-        "symbol": "CalculatorTool.__init__"
+        "symbol": "CalculatorTool.__init__",
+        "kind": "call",
+        "expression": "CalculatorTool()"
       },
       {
         "line": 51,
         "start": 4,
         "end": 26,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_tool"
+        "symbol": "ToolRegistry.register_tool",
+        "kind": "call",
+        "expression": "registry.register_tool(tool)"
       },
       {
         "line": 53,
         "start": 11,
         "end": 32,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"calculate\", \"sqrt(16)\")"
       },
       {
         "line": 54,
         "start": 11,
         "end": 32,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"calculator\", \"15 * 8 + 32\")"
       },
       {
         "line": 55,
         "start": 11,
         "end": 28,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tool"
+        "symbol": "ToolRegistry.get_tool",
+        "kind": "call",
+        "expression": "registry.get_tool(\"calculator\")"
       },
       {
         "line": 56,
         "start": 11,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.list_tools"
+        "symbol": "ToolRegistry.list_tools",
+        "kind": "call",
+        "expression": "registry.list_tools()"
       },
       {
         "line": 57,
         "start": 11,
         "end": 35,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.unregister_tool"
+        "symbol": "ToolRegistry.unregister_tool",
+        "kind": "call",
+        "expression": "registry.unregister_tool(\"calculator\")"
       },
       {
         "line": 58,
         "start": 11,
         "end": 32,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"calculate\", \"2 + 3\")"
       }
     ],
     "origin": "project"
@@ -2293,252 +2697,324 @@
         "start": 15,
         "end": 19,
         "file": "tools/base.py",
-        "symbol": "Tool"
+        "symbol": "Tool",
+        "kind": "reference",
+        "expression": "Tool"
       },
       {
         "line": 11,
         "start": 8,
         "end": 24,
         "file": "tools/base.py",
-        "symbol": "Tool.__init__"
+        "symbol": "Tool.__init__",
+        "kind": "call",
+        "expression": "super().__init__(name, \"返回输入文本\")"
       },
       {
         "line": 17,
         "start": 16,
         "end": 29,
         "file": "tools/base.py",
-        "symbol": "ToolParameter"
+        "symbol": "ToolParameter",
+        "kind": "call",
+        "expression": "ToolParameter(name=\"input\", type=\"string\", description=\"输入文本\")"
       },
       {
         "line": 21,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 22,
         "start": 11,
         "end": 19,
         "file": "tests/test_tool_registry.py",
-        "symbol": "EchoTool.__init__"
+        "symbol": "EchoTool.__init__",
+        "kind": "call",
+        "expression": "EchoTool()"
       },
       {
         "line": 23,
         "start": 4,
         "end": 26,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_tool"
+        "symbol": "ToolRegistry.register_tool",
+        "kind": "call",
+        "expression": "registry.register_tool(tool)"
       },
       {
         "line": 25,
         "start": 11,
         "end": 28,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tool"
+        "symbol": "ToolRegistry.get_tool",
+        "kind": "call",
+        "expression": "registry.get_tool(\"echo\")"
       },
       {
         "line": 26,
         "start": 11,
         "end": 32,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"echo\", \"hello\")"
       },
       {
         "line": 27,
         "start": 11,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.list_tools"
+        "symbol": "ToolRegistry.list_tools",
+        "kind": "call",
+        "expression": "registry.list_tools()"
       },
       {
         "line": 28,
         "start": 21,
         "end": 51,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tools_description"
+        "symbol": "ToolRegistry.get_tools_description",
+        "kind": "call",
+        "expression": "registry.get_tools_description()"
       },
       {
         "line": 29,
         "start": 11,
         "end": 35,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.unregister_tool"
+        "symbol": "ToolRegistry.unregister_tool",
+        "kind": "call",
+        "expression": "registry.unregister_tool(\"echo\")"
       },
       {
         "line": 30,
         "start": 11,
         "end": 28,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tool"
+        "symbol": "ToolRegistry.get_tool",
+        "kind": "call",
+        "expression": "registry.get_tool(\"echo\")"
       },
       {
         "line": 31,
         "start": 11,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.list_tools"
+        "symbol": "ToolRegistry.list_tools",
+        "kind": "call",
+        "expression": "registry.list_tools()"
       },
       {
         "line": 35,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 36,
         "start": 4,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_function"
+        "symbol": "ToolRegistry.register_function",
+        "kind": "call",
+        "expression": "registry.register_function(\"uppercase\", \"转大写\", str.upper)"
       },
       {
         "line": 38,
         "start": 11,
         "end": 32,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"uppercase\", \"hello\")"
       },
       {
         "line": 39,
         "start": 11,
         "end": 28,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tool"
+        "symbol": "ToolRegistry.get_tool",
+        "kind": "call",
+        "expression": "registry.get_tool(\"uppercase\")"
       },
       {
         "line": 40,
         "start": 11,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.list_tools"
+        "symbol": "ToolRegistry.list_tools",
+        "kind": "call",
+        "expression": "registry.list_tools()"
       },
       {
         "line": 41,
         "start": 11,
         "end": 35,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.unregister_tool"
+        "symbol": "ToolRegistry.unregister_tool",
+        "kind": "call",
+        "expression": "registry.unregister_tool(\"uppercase\")"
       },
       {
         "line": 42,
         "start": 11,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.list_tools"
+        "symbol": "ToolRegistry.list_tools",
+        "kind": "call",
+        "expression": "registry.list_tools()"
       },
       {
         "line": 46,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 48,
         "start": 11,
         "end": 28,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tool"
+        "symbol": "ToolRegistry.get_tool",
+        "kind": "call",
+        "expression": "registry.get_tool(\"missing\")"
       },
       {
         "line": 49,
         "start": 11,
         "end": 32,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"missing\", \"hello\")"
       },
       {
         "line": 50,
         "start": 11,
         "end": 35,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.unregister_tool"
+        "symbol": "ToolRegistry.unregister_tool",
+        "kind": "call",
+        "expression": "registry.unregister_tool(\"missing\")"
       },
       {
         "line": 54,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 55,
         "start": 4,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_function"
+        "symbol": "ToolRegistry.register_function",
+        "kind": "call",
+        "expression": "registry.register_function(\"echo\", \"函数工具\", lambda text: \"function\")"
       },
       {
         "line": 56,
         "start": 4,
         "end": 26,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_tool"
+        "symbol": "ToolRegistry.register_tool",
+        "kind": "call",
+        "expression": "registry.register_tool(EchoTool())"
       },
       {
         "line": 56,
         "start": 27,
         "end": 35,
         "file": "tests/test_tool_registry.py",
-        "symbol": "EchoTool.__init__"
+        "symbol": "EchoTool.__init__",
+        "kind": "call",
+        "expression": "EchoTool()"
       },
       {
         "line": 58,
         "start": 11,
         "end": 32,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"echo\", \"object\")"
       },
       {
         "line": 59,
         "start": 11,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.list_tools"
+        "symbol": "ToolRegistry.list_tools",
+        "kind": "call",
+        "expression": "registry.list_tools()"
       },
       {
         "line": 60,
         "start": 11,
         "end": 35,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.unregister_tool"
+        "symbol": "ToolRegistry.unregister_tool",
+        "kind": "call",
+        "expression": "registry.unregister_tool(\"echo\")"
       },
       {
         "line": 61,
         "start": 11,
         "end": 32,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"echo\", \"hello\")"
       },
       {
         "line": 62,
         "start": 11,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.list_tools"
+        "symbol": "ToolRegistry.list_tools",
+        "kind": "call",
+        "expression": "registry.list_tools()"
       },
       {
         "line": 69,
         "start": 15,
         "end": 27,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.__init__"
+        "symbol": "ToolRegistry.__init__",
+        "kind": "call",
+        "expression": "ToolRegistry()"
       },
       {
         "line": 70,
         "start": 4,
         "end": 30,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.register_function"
+        "symbol": "ToolRegistry.register_function",
+        "kind": "call",
+        "expression": "registry.register_function(\"fail\", \"抛出异常\", fail)"
       },
       {
         "line": 73,
         "start": 8,
         "end": 29,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"fail\", \"hello\")"
       }
     ],
     "origin": "project"
@@ -2558,35 +3034,45 @@
         "start": 10,
         "end": 20,
         "file": "core/llm.py",
-        "symbol": "create_llm"
+        "symbol": "create_llm",
+        "kind": "call",
+        "expression": "create_llm()"
       },
       {
         "line": 10,
         "start": 20,
         "end": 35,
         "file": "agents/reflection_agent.py",
-        "symbol": "ReflectionAgent.__init__"
+        "symbol": "ReflectionAgent.__init__",
+        "kind": "call",
+        "expression": "ReflectionAgent(name=\"我的反思助手\", llm=llm)"
       },
       {
         "line": 20,
         "start": 17,
         "end": 32,
         "file": "agents/reflection_agent.py",
-        "symbol": "ReflectionAgent.__init__"
+        "symbol": "ReflectionAgent.__init__",
+        "kind": "call",
+        "expression": "ReflectionAgent(\n        name=\"我的代码生成助手\",\n        llm=llm,\n        custom_prompts=code_prompts\n    )"
       },
       {
         "line": 26,
         "start": 13,
         "end": 27,
         "file": "agents/reflection_agent.py",
-        "symbol": "ReflectionAgent.run"
+        "symbol": "ReflectionAgent.run",
+        "kind": "call",
+        "expression": "code_agent.run(\"编写一个函数，接收整数列表，返回去重后按升序排列的列表\")"
       },
       {
         "line": 32,
         "start": 4,
         "end": 8,
         "file": "examples/reflection_agent_demo.py",
-        "symbol": "main"
+        "symbol": "main",
+        "kind": "call",
+        "expression": "main()"
       }
     ],
     "origin": "project"
@@ -2606,28 +3092,36 @@
         "start": 10,
         "end": 20,
         "file": "core/llm.py",
-        "symbol": "create_llm"
+        "symbol": "create_llm",
+        "kind": "call",
+        "expression": "create_llm()"
       },
       {
         "line": 14,
         "start": 12,
         "end": 29,
         "file": "agents/plan_solve_agent.py",
-        "symbol": "PlanAndSolveAgent.__init__"
+        "symbol": "PlanAndSolveAgent.__init__",
+        "kind": "call",
+        "expression": "PlanAndSolveAgent(llm_client=llm)"
       },
       {
         "line": 19,
         "start": 13,
         "end": 22,
         "file": "agents/plan_solve_agent.py",
-        "symbol": "PlanAndSolveAgent.run"
+        "symbol": "PlanAndSolveAgent.run",
+        "kind": "call",
+        "expression": "agent.run(question)"
       },
       {
         "line": 24,
         "start": 4,
         "end": 8,
         "file": "examples/plan_solve_agent_demo.py",
-        "symbol": "main"
+        "symbol": "main",
+        "kind": "call",
+        "expression": "main()"
       }
     ],
     "origin": "project"
@@ -2657,63 +3151,81 @@
         "start": 15,
         "end": 37,
         "file": "tools/search_tool.py",
-        "symbol": "create_search_registry"
+        "symbol": "create_search_registry",
+        "kind": "call",
+        "expression": "create_search_registry()"
       },
       {
         "line": 23,
         "start": 17,
         "end": 38,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.execute_tool"
+        "symbol": "ToolRegistry.execute_tool",
+        "kind": "call",
+        "expression": "registry.execute_tool(\"search\", query)"
       },
       {
         "line": 32,
         "start": 18,
         "end": 28,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.__init__"
+        "symbol": "SearchTool.__init__",
+        "kind": "call",
+        "expression": "SearchTool()"
       },
       {
         "line": 35,
         "start": 13,
         "end": 31,
         "file": "tools/search_tool.py",
-        "symbol": "SearchTool.search"
+        "symbol": "SearchTool.search",
+        "kind": "call",
+        "expression": "search_tool.search(\"机器学习算法\")"
       },
       {
         "line": 43,
         "start": 15,
         "end": 37,
         "file": "tools/search_tool.py",
-        "symbol": "create_search_registry"
+        "symbol": "create_search_registry",
+        "kind": "call",
+        "expression": "create_search_registry()"
       },
       {
         "line": 44,
         "start": 17,
         "end": 47,
         "file": "tools/registry.py",
-        "symbol": "ToolRegistry.get_tools_description"
+        "symbol": "ToolRegistry.get_tools_description",
+        "kind": "call",
+        "expression": "registry.get_tools_description()"
       },
       {
         "line": 49,
         "start": 4,
         "end": 15,
         "file": "examples/search_demo.py",
-        "symbol": "demo_search"
+        "symbol": "demo_search",
+        "kind": "call",
+        "expression": "demo_search()"
       },
       {
         "line": 50,
         "start": 4,
         "end": 22,
         "file": "examples/search_demo.py",
-        "symbol": "demo_direct_search"
+        "symbol": "demo_direct_search",
+        "kind": "call",
+        "expression": "demo_direct_search()"
       },
       {
         "line": 51,
         "start": 4,
         "end": 25,
         "file": "examples/search_demo.py",
-        "symbol": "demo_tool_description"
+        "symbol": "demo_tool_description",
+        "kind": "call",
+        "expression": "demo_tool_description()"
       }
     ],
     "origin": "project"

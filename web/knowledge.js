@@ -53,14 +53,6 @@ export const relations=[
   ['agent','message','历史元素类型'],['agent','config','保存配置'],['agent','run','抽象入口'],['agent','history','历史方法'],['message','dict','格式转换'],
 ];
 
-const event=(node,title,text,data)=>({node,title,text,data});
-export const flowExamples={
-  main:[event('main','01 / 程序入口','当前 main.py 直接调用客户端，没有创建 Agent。','create_llm()'),event('factory','02 / 解析配置','同一服务的一组参数交给本地 LLM；演示不读取真实配置或凭证。','provider + model + base_url + key source'),event('client','03 / 创建生成器','think 是惰性生成器，此时尚未请求。','response_stream = llm.think(messages)'),event('request','04 / 开始迭代','迭代时合并请求参数，进入 SDK；本页面仅模拟。','_request(messages, stream=True, options=kwargs)'),event('client','05 / 返回片段','跳过无 choices 或空正文事件，打印并 yield。','delta.content → print → yield'),event('main','06 / 完成','外层 pass 继续消费；上下文管理器释放响应。','for chunk in response_stream: pass')],
-  simple:[event('simple','01 / 组织上下文','系统提示词、历史和当前输入组成 messages。','system → history → user'),event('history','02 / 本地历史','get_history 来自 core/agent.py，返回浅拷贝。','self.get_history()'),event('invoke','03 / 完整回答','无工具分支调用本地 LLM.invoke。','response = self.llm.invoke(messages, **kwargs)'),event('history','04 / 保存问答','使用本地 Message，分别保存用户输入和回答。','self.add_message(Message(...))'),event('simple','05 / 返回结果','此路径是方法级模拟，main 没有接入 Agent。','return response')],
-  tools:[event('simple','01 / 工具分支','注入注册表并启用工具；示例使用本地 CalculatorTool。','name = calculator'),event('tool-loop','02 / 请求模型','假设模型按约定返回工具文本标记。','[TOOL_CALL:calculator:15 * 8 + 32]'),event('tool-parse','03 / 解析标记','提取名称、参数与待清理的原始文本。','tool_name + parameters + original'),event('tool-execute','04 / 调度工具','calculator 走注册表分支，表达式被包装为 input 字典。','execute_tool → tool.run({input: expression})'),event('calculator','05 / 计算器对象','run 委托 calculate。结果 152 是教学数据，不实际执行工具。','CalculatorTool.run → calculate → 152'),event('tool-loop','06 / 回传结果','清理标记，把 assistant 文本和 user 工具结果追加到本轮上下文。','messages.append(...)'),event('invoke','07 / 再次请求','假设模型不再输出工具标记，得到最终回答。','final_response = response'),event('history','08 / 保存问答','只保存原始输入和最终答案，不保存全部工具轨迹。','user + assistant')],
-  react:[event('react','01 / 重置任务轨迹','构造时选择非空 custom_prompt 或 DEFAULT_REACT_PROMPT；每次 run 清空 current_history。','prompt_template → current_history = []'),event('invoke','02 / 思考与行动','示例模型文本，不发送真实请求。','Thought: calculate\nAction: calculator[15 * 8 + 32]'),event('react','03 / 解析行动','本地方法解析 Thought / Action 与方括号输入。','_parse_output → _parse_action'),event('registry','04 / 统一调度','对象优先，通过 input 键交给 CalculatorTool。','execute_tool → CalculatorTool.run'),event('react','05 / 追加观察','把 Action 与 Observation 放入下一轮模板。','Observation: 152'),event('invoke','06 / 结束行动','假设模型返回 Finish，提取答案。','Action: Finish[152]'),event('history','07 / 保存问答','达到 Finish 或步数上限时保存原问题与最终回答。','Message(input_text) + Message(final_answer)')],
-};
-
 const step=(title,text,needle,end)=>({title,text,needle,end});
 export const notes={};
 const note=(file,symbol,summary,input,output,points=[],steps=[],warning)=>{

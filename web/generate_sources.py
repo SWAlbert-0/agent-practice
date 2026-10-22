@@ -21,7 +21,12 @@ SOURCE_FILES = (
 
 def generate():
     units = {}
-    for name in SOURCE_FILES:
+    names = list(SOURCE_FILES)
+    for path in sorted((PROJECT_ROOT / "examples").rglob("*.py")):
+        name = path.relative_to(PROJECT_ROOT).as_posix()
+        if not path.name.startswith("_") and name not in names:
+            names.append(name)
+    for name in names:
         source = (PROJECT_ROOT / name).read_text(encoding="utf-8-sig")
         tree = ast.parse(source)
         symbols, definitions, imports = {}, {}, {}
@@ -170,14 +175,16 @@ def generate():
     for file, unit in units.items():
         lines = unit["code"].splitlines()
 
-        def add(expr, ref):
+        def add(expr, ref, call=None):
             if not valid(ref) or expr.lineno != expr.end_lineno:
                 return
             line = lines[expr.lineno - 1].encode("utf-8")
             # AST 列号是 UTF-8 字节，前端切片使用 UTF-16 单元。
             col = lambda offset: len(line[:offset].decode("utf-8").encode("utf-16-le")) // 2
             unit["calls"].append({"line": expr.lineno, "start": col(expr.col_offset),
-                                  "end": col(expr.end_col_offset), "file": ref[0], "symbol": ref[1]})
+                                  "end": col(expr.end_col_offset), "file": ref[0], "symbol": ref[1],
+                                  "kind": "call" if call is not None else "reference",
+                                  "expression": ast.get_source_segment(unit["code"], call or expr)})
 
         class Linker(ast.NodeVisitor):
             def __init__(self):
@@ -236,7 +243,7 @@ def generate():
                 ref = self.resolve(node.func)
                 if ref and isinstance(units[ref[0]]["definitions"][ref[1]], ast.ClassDef):
                     ref = method(ref, "__init__") or ref
-                add(node.func, ref)
+                add(node.func, ref, node)
                 for keyword in node.keywords:
                     if keyword.arg == "func":
                         add(keyword.value, self.resolve(keyword.value))
@@ -252,7 +259,56 @@ def generate():
     sources = {name: {k: unit[k] for k in ("code", "symbols", "calls", "origin")} for name, unit in units.items()}
     (WEB_ROOT / "sources.json").write_text(json.dumps(sources, ensure_ascii=False, indent=2), encoding="utf-8")
     print(f"Indexed {len(sources)} local source files -> sources.json")
+    generate_examples(sources)
     return sources
+
+
+# 只维护展示名称和学习顺序；示例入口与调用关系仍从源码自动发现。
+EXAMPLE_LABELS = {
+    "examples/simple_agent_demo.py::main": "基础对话 Agent",
+    "examples/calculator_demo.py::demo_calculator_tool": "计算器工具基础",
+    "examples/calculator_demo.py::demo_calculator_with_llm": "计算器与模型协作",
+    "examples/reflection_agent_demo.py::main": "反思 Agent：评估与改进",
+    "examples/plan_solve_agent_demo.py::main": "规划执行 Agent：分解与执行",
+    "examples/search_demo.py::demo_direct_search": "搜索工具：直接查询",
+    "examples/search_demo.py::demo_search": "搜索工具：注册与调用",
+    "examples/search_demo.py::demo_tool_description": "搜索工具：查看工具描述",
+}
+
+
+def generate_examples(sources):
+    """只解析 examples 源码，自动收集脚本入口，不导入或执行示例。"""
+    examples = []
+    for file, source in sources.items():
+        if not file.startswith("examples/") or Path(file).name.startswith("_"):
+            continue
+        tree = ast.parse(source["code"])
+        functions = {}
+        for node in tree.body:
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and not node.name.startswith("_"):
+                functions[node.name] = node
+        entries = []
+        for statement in tree.body:
+            if isinstance(statement, ast.If) and ast.unparse(statement.test) == "__name__ == '__main__'":
+                for node in ast.walk(statement):
+                    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+                        if node.func.id in functions and node.func.id not in entries:
+                            entries.append(node.func.id)
+        if not entries:
+            entries = list(functions) or [""]
+        for symbol in entries:
+            description = ast.get_docstring(functions[symbol]) if symbol else ast.get_docstring(tree)
+            example_id = f"{file}::{symbol}"
+            default_title = description.splitlines()[0] if description else f"{Path(file).stem} · {symbol or '脚本入口'}"
+            examples.append({
+                "id": example_id, "file": file, "symbol": symbol,
+                "title": EXAMPLE_LABELS.get(example_id, default_title),
+            })
+    order = {example_id: index for index, example_id in enumerate(EXAMPLE_LABELS)}
+    # 新入口不需要预先登记，自动追加；确定学习位置后再补充名称和顺序。
+    examples.sort(key=lambda entry: order.get(entry["id"], len(order)))
+    (WEB_ROOT / "examples.json").write_text(json.dumps(examples, ensure_ascii=False, indent=2), encoding="utf-8")
+    print(f"Discovered {len(examples)} example entry points")
 
 
 def generate_diagrams(sources=None):
